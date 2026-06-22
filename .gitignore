@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+
+# Secrets — never commit
+.env
+.env.*
+**/.env
+config.js
+public/config.js
+
+# Local tooling / build artifacts
+.netlify
+.vercel
+together-web.zip

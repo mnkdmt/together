@@ -1,0 +1,11 @@
+# Together — Netlify config: static frontend in public/ + the Telegram bot as a webhook function.
+[build]
+  publish = "public"
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# The bot function binds itself to /bot via `export const config = { path: '/bot' }`,
+# so no redirect is needed (a redirect to /.netlify/functions/bot would 404 — the function moved to /bot).

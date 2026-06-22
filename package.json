@@ -1,0 +1,10 @@
+{
+  "name": "together",
+  "private": true,
+  "type": "module",
+  "description": "Together — frontend (public/) + Telegram bot webhook (netlify/functions)",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "grammy": "^1.30.0"
+  }
+}
