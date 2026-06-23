@@ -21,6 +21,11 @@ const WELCOME_CAPTION =
   '🛒 <b>покупки</b> текстом («молоко, хлеб») — разложу по темам.\n\n' +
   'Всё попадёт в приложение — там вы выберете, чем заняться. ✨';
 
+// Share the bot itself so OTHER couples can start their own Together (separate from inviting a partner).
+const SHARE_LINK = 'https://t.me/share/url?url=' + encodeURIComponent('https://t.me/togethera_bot') +
+  '&text=' + encodeURIComponent('Together — приложение для пары: складываешь идеи свиданий и решаешь, чем заняться вместе 💛');
+const shareKb = () => new InlineKeyboard().url('💌 Поделиться с друзьями', SHARE_LINK);
+
 // Multi-tenant: resolve the sender's couple (auto-provision on first contact). The bot is open to
 // everyone — every write is scoped to the sender's own couple, so there's no cross-couple leakage.
 async function resolveCouple(from) {
@@ -46,8 +51,12 @@ bot.command('start', async (ctx) => {
     await ctx.reply('💛 Готово! Теперь вы в общей паре. Открой приложение — увидите общий список идей и покупок.');
     return;
   }
-  try { await ctx.replyWithPhoto(WELCOME_PHOTO, { caption: WELCOME_CAPTION, parse_mode: 'HTML' }); }
-  catch (e) { await ctx.reply(WELCOME_CAPTION.replace(/<\/?b>/g, '')); }
+  try { await ctx.replyWithPhoto(WELCOME_PHOTO, { caption: WELCOME_CAPTION, parse_mode: 'HTML', reply_markup: shareKb() }); }
+  catch (e) { await ctx.reply(WELCOME_CAPTION.replace(/<\/?b>/g, ''), { reply_markup: shareKb() }); }
+});
+
+bot.command('share', async (ctx) => {
+  await ctx.reply('Расскажи о Together другой паре — пусть тоже не теряются, чем заняться вместе 💛', { reply_markup: shareKb() });
 });
 
 bot.on('message:text', async (ctx) => {

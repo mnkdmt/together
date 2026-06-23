@@ -413,6 +413,13 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
         <span class="sl" style="color:#E08A7A">Выйти из пары</span>
       </div>
     </div>
+    <div class="settings glass" style="margin:0 0 14px">
+      <div class="srow" data-share-app>
+        <span class="si" style="background:rgba(120,190,255,.12);color:#7FB6FF"><svg class="ic"><use href="#i-share"/></svg></span>
+        <span class="sl">Поделиться с другом</span>
+        <span class="sv" style="color:var(--text-tertiary)">другая пара <svg class="ic"><use href="#i-chev"/></svg></span>
+      </div>
+    </div>
     <div class="settings glass" id="settings-list"></div>
     <div class="divider-note">Together · v1 · тёмный Liquid Glass</div>
   </section>
@@ -880,6 +887,12 @@ function shareInvite(link){
   if(window.__tg&&window.__tg.openTelegramLink){try{window.__tg.openTelegramLink(share);return;}catch(e){}}
   try{navigator.clipboard.writeText(link);toast('Ссылка-приглашение скопирована');}catch(e){toast(link);}
 }
+function shareApp(){
+  const link='https://t.me/togethera_bot';
+  const share='https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodeURIComponent('Together — приложение для пары: складываешь идеи свиданий и решаешь, чем заняться вместе 💛');
+  if(window.__tg&&window.__tg.openTelegramLink){try{window.__tg.openTelegramLink(share);return;}catch(e){}}
+  try{navigator.clipboard.writeText(link);toast('Ссылка на бота скопирована');}catch(e){toast(link);}
+}
 async function pairAction(kind){
   if(!window.__op){toast('Доступно только в Telegram');return;}
   if(kind==='invite'){
@@ -1002,6 +1015,7 @@ document.addEventListener('click',e=>{
   const rt=e.target.closest('[data-route]'); if(rt){const link='https://yandex.ru/maps/?rtext=~'+rt.dataset.route+'&rtt=auto';if(window.__tg&&window.__tg.openLink){window.__tg.openLink(link);}else{window.open(link,'_blank');}return;}
   if(e.target.closest('[data-onb-open]')){openOnboarding();return;}
   const pr=e.target.closest('[data-pair]'); if(pr){pairAction(pr.dataset.pair);return;}
+  if(e.target.closest('[data-share-app]')){shareApp();return;}
   const act=e.target.closest('[data-act]'); if(act){const a=act.dataset.act;
     if(a==='onb')openOnboarding();
     else if(a==='bot'){const u='https://t.me/togethera_bot';if(window.__tg&&window.__tg.openTelegramLink)window.__tg.openTelegramLink(u);else window.open(u,'_blank');}
