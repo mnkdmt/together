@@ -31,8 +31,10 @@ function normalize(e) {
       const hm = d.toISOString().slice(11, 16);
       event_time = hm === '00:00' ? '' : hm;
     } else if (occ.end > 0) {
-      ongoing = true; // happening now; show "до <end>"
-      event_date = new Date((occ.end + MSK_OFFSET) * 1000).toISOString().slice(0, 10);
+      ongoing = true; // happening now
+      const endY = new Date(occ.end * 1000).getUTCFullYear();
+      if (endY <= 2100) event_date = new Date((occ.end + MSK_OFFSET) * 1000).toISOString().slice(0, 10); // "до <end>"
+      // else open-ended (KudaGo's 9999 sentinel) → no deadline, shown as "идёт сейчас"
     }
   }
   const title = e.title ? e.title.charAt(0).toUpperCase() + e.title.slice(1) : '';
@@ -49,6 +51,7 @@ function normalize(e) {
     event_date, event_time, ongoing,
     price: e.price || '',
     cats: e.categories || [],
+    tags: (e.tags || []).slice(0, 30),
   };
 }
 
@@ -63,7 +66,7 @@ export default async function handler(req, res) {
     const city = (body.city || 'msk').replace(/[^a-z-]/g, '').slice(0, 20) || 'msk';
     const pageSize = Math.min(Math.max(+body.page_size || 40, 1), 100);
     const now = Math.floor(Date.now() / 1000);
-    const fields = 'id,title,dates,place,categories,price,images,site_url';
+    const fields = 'id,title,dates,place,categories,price,images,site_url,tags';
     let url = `${KUDAGO}/events/?location=${city}&actual_since=${now}&page_size=${pageSize}`
       + `&fields=${fields}&expand=place&text_format=text&order_by=-favorites_count`;
     if (body.category) url += `&categories=${encodeURIComponent(String(body.category).replace(/[^a-z,-]/g, ''))}`;
@@ -71,7 +74,7 @@ export default async function handler(req, res) {
     const r = await fetch(url, { headers: { 'accept-language': 'ru' } });
     if (!r.ok) return res.status(502).json({ error: 'kudago ' + r.status });
     const j = await r.json();
-    const events = (j.results || []).map(normalize).filter((e) => e.title && e.event_date);
+    const events = (j.results || []).map(normalize).filter((e) => e.title && (e.event_date || e.ongoing));
     return res.status(200).json({ data: { events, count: j.count || events.length } });
   } catch (e) {
     return res.status(500).json({ error: String((e && e.message) || e) });
