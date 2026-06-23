@@ -40,8 +40,9 @@ img{display:block}
 #boot .bflame{font-size:54px;color:var(--accent-ember);filter:drop-shadow(0 0 20px rgba(255,122,69,.55));animation:bootpulse 1.5s ease-in-out infinite}
 #boot .bname{font-family:var(--font-serif);font-size:26px;color:var(--text-primary);letter-spacing:.5px;opacity:.92}
 @keyframes bootpulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.13);opacity:1}}
-.dinput{background:transparent;border:none;color:var(--accent-ember);font-size:14px;font-weight:600;font-family:inherit;text-align:right;padding:0;min-width:118px;color-scheme:dark;-webkit-appearance:none;appearance:none}
-.dinput::-webkit-calendar-picker-indicator{filter:invert(.7) sepia(1) saturate(4) hue-rotate(330deg);opacity:.8;cursor:pointer}
+.dinput{background:transparent;border:none;color:var(--accent-ember);font-size:14px;font-weight:600;font-family:inherit;text-align:right;padding:6px 0;min-width:132px;min-height:26px;color-scheme:dark;cursor:pointer}
+.dinput::-webkit-calendar-picker-indicator{filter:invert(.7) sepia(1) saturate(4) hue-rotate(330deg);opacity:.85;cursor:pointer}
+label.srow{cursor:pointer}
 .ambient{position:fixed;max-width:430px;width:100%;height:100dvh;top:0;pointer-events:none;z-index:0;overflow:hidden}
 .ambient::before,.ambient::after{content:"";position:absolute;border-radius:50%;filter:blur(11px);opacity:.5}
 .ambient::before{width:280px;height:280px;right:-70px;top:-40px;background:radial-gradient(closest-side,var(--accent-glow),transparent)}
@@ -417,10 +418,10 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
       </div>
     </div>
     <div class="settings glass" style="margin:0 0 14px" id="dates-card">
-      <div class="srow"><span class="si" style="background:rgba(255,122,69,.14);font-size:15px">💞</span><span class="sl">Вместе с</span><span class="sv"><input type="date" class="dinput" id="d-rel"></span></div>
-      <div class="srow"><span class="si" style="background:rgba(255,122,69,.14);font-size:15px">💍</span><span class="sl">Свадьба</span><span class="sv"><input type="date" class="dinput" id="d-wed"></span></div>
-      <div class="srow"><span class="si" style="background:rgba(255,122,69,.14);font-size:15px">🎂</span><span class="sl">Мой день рождения</span><span class="sv"><input type="date" class="dinput" id="d-bday"></span></div>
-      <div class="srow" id="d-bday-partner-row" style="display:none"><span class="si" style="background:rgba(120,190,255,.12);font-size:15px">🎂</span><span class="sl" id="d-bday-partner-label">День рождения партнёра</span><span class="sv"><input type="date" class="dinput" id="d-bday-partner"></span></div>
+      <label class="srow"><span class="si" style="background:rgba(255,122,69,.14);font-size:15px">💞</span><span class="sl">Вместе с</span><span class="sv"><input type="date" class="dinput" id="d-rel"></span></label>
+      <label class="srow"><span class="si" style="background:rgba(255,122,69,.14);font-size:15px">💍</span><span class="sl">Свадьба</span><span class="sv"><input type="date" class="dinput" id="d-wed"></span></label>
+      <label class="srow"><span class="si" style="background:rgba(255,122,69,.14);font-size:15px">🎂</span><span class="sl">Мой день рождения</span><span class="sv"><input type="date" class="dinput" id="d-bday"></span></label>
+      <label class="srow" id="d-bday-partner-row" style="display:none"><span class="si" style="background:rgba(120,190,255,.12);font-size:15px">🎂</span><span class="sl" id="d-bday-partner-label">День рождения партнёра</span><span class="sv"><input type="date" class="dinput" id="d-bday-partner"></span></label>
     </div>
     <div class="settings glass" style="margin:0 0 14px">
       <div class="srow" data-share-app>
