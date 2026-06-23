@@ -23,11 +23,25 @@ const WELCOME_CAPTION =
 
 bot.use(async (ctx, next) => {
   const uid = String(ctx.from?.id || '');
-  if (allowed.length && !allowed.includes(uid)) { await ctx.reply('Этот бот личный 💛'); return; }
+  const inviteJoin = /^\/start\s+inv_/.test(ctx.message?.text || ''); // invite links must work for anyone
+  if (allowed.length && !allowed.includes(uid) && !inviteJoin) { await ctx.reply('Этот бот личный 💛'); return; }
   await next();
 });
 
 bot.command('start', async (ctx) => {
+  const payload = (ctx.match || '').trim();
+  if (payload.startsWith('inv_')) {
+    const token = payload.slice(4);
+    const inv = await supa.from('invites').select('couple_id,used_by,expires_at').eq('token', token).maybeSingle();
+    if (!inv.data) { await ctx.reply('Приглашение не найдено 😕'); return; }
+    if (inv.data.used_by) { await ctx.reply('Это приглашение уже использовано.'); return; }
+    if (inv.data.expires_at && new Date(inv.data.expires_at) < new Date()) { await ctx.reply('Приглашение устарело.'); return; }
+    const name = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ') || ctx.from.username || '';
+    await supa.from('app_users').upsert({ telegram_id: ctx.from.id, couple_id: inv.data.couple_id, name });
+    await supa.from('invites').update({ used_by: ctx.from.id, used_at: new Date().toISOString() }).eq('token', token);
+    await ctx.reply('💛 Готово! Теперь вы в общей паре. Открой приложение — увидите общий список идей и покупок.');
+    return;
+  }
   try { await ctx.replyWithPhoto(WELCOME_PHOTO, { caption: WELCOME_CAPTION, parse_mode: 'HTML' }); }
   catch (e) { await ctx.reply(WELCOME_CAPTION.replace(/<\/?b>/g, '')); }
 });

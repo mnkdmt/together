@@ -397,6 +397,22 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
       <div class="stat"><div class="n" id="st-plan">2</div><div class="c">в плане</div></div>
       <div class="stat"><div class="n" id="st-mem" style="color:var(--accent-ember)">24</div><div class="c">было</div></div>
     </div>
+    <div class="settings glass" style="margin:0 0 14px" id="pair-card">
+      <div class="srow" data-pair="rename">
+        <span class="si" style="background:rgba(255,122,69,.14);color:var(--accent-ember)"><svg class="ic"><use href="#i-heart"/></svg></span>
+        <span class="sl">Название пары</span>
+        <span class="sv"><span id="pair-name">—</span> <svg class="ic"><use href="#i-chev"/></svg></span>
+      </div>
+      <div class="srow" data-pair="invite">
+        <span class="si" style="background:rgba(255,122,69,.14);color:var(--accent-ember)"><svg class="ic"><use href="#i-send"/></svg></span>
+        <span class="sl">Пригласить партнёра</span>
+        <span class="sv"><svg class="ic"><use href="#i-chev"/></svg></span>
+      </div>
+      <div class="srow" data-pair="leave">
+        <span class="si" style="background:rgba(255,255,255,.06);color:#E08A7A"><svg class="ic"><use href="#i-x"/></svg></span>
+        <span class="sl" style="color:#E08A7A">Выйти из пары</span>
+      </div>
+    </div>
     <div class="settings glass" id="settings-list"></div>
     <div class="divider-note">Together · v1 · тёмный Liquid Glass</div>
   </section>
@@ -859,6 +875,36 @@ function shareIdea(url){
   if(navigator.share){navigator.share({url}).catch(()=>{});return;}
   try{navigator.clipboard.writeText(url);}catch(e){}
 }
+function shareInvite(link){
+  const share='https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodeURIComponent('Присоединяйся к нашей паре в Together 💛');
+  if(window.__tg&&window.__tg.openTelegramLink){try{window.__tg.openTelegramLink(share);return;}catch(e){}}
+  try{navigator.clipboard.writeText(link);toast('Ссылка-приглашение скопирована');}catch(e){toast(link);}
+}
+async function pairAction(kind){
+  if(!window.__op){toast('Доступно только в Telegram');return;}
+  if(kind==='invite'){
+    toast('Создаю приглашение…');
+    const r=await window.__op('invite');
+    if(r&&r.data&&r.data.link)shareInvite(r.data.link); else toast('Не удалось создать ссылку');
+  }else if(kind==='leave'){
+    confirmThen('Выйти из пары? Ты перестанешь видеть общие идеи и покупки (у партнёра они останутся). Новая пара будет пустой.',async()=>{
+      const r=await window.__op('leave');
+      if(r&&r.data)location.reload(); else toast('Не вышло');
+    });
+  }else if(kind==='rename'){
+    const el=document.getElementById('pair-name'); if(!el)return;
+    const cur=(el.textContent||'').trim()==='—'?'':(el.textContent||'').trim();
+    const inp=document.createElement('input'); inp.className='field'; inp.value=cur;
+    inp.style.cssText='max-width:170px;padding:6px 10px;font-size:14px;margin:0';
+    el.style.display='none'; el.parentNode.insertBefore(inp,el); inp.focus();
+    let done=false;
+    const save=async()=>{ if(done)return; done=true; const v=(inp.value||'').trim();
+      if(v&&v!==cur){await window.__op('rename',{name:v}); el.textContent=v;}
+      el.style.display=''; inp.remove(); };
+    inp.addEventListener('blur',save);
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur(); if(e.key==='Escape'){done=true;el.style.display='';inp.remove();}});
+  }
+}
 function toast(msg){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:rgba(20,18,28,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.14);color:#F4F1FA;font-size:13px;font-weight:500;padding:10px 18px;border-radius:999px;z-index:80;opacity:0;transition:opacity .22s;pointer-events:none';(document.getElementById('app')||document.body).appendChild(t);}t.textContent=msg;requestAnimationFrame(()=>{t.style.opacity='1';});clearTimeout(window.__tt);window.__tt=setTimeout(()=>{t.style.opacity='0';},1700);}
 
 // actions
@@ -955,6 +1001,7 @@ document.addEventListener('click',e=>{
   const di=e.target.closest('[data-delidea]'); if(di){confirmThen('Удалить идею из списка?',()=>delIdea(di.dataset.delidea));return;}
   const rt=e.target.closest('[data-route]'); if(rt){const link='https://yandex.ru/maps/?rtext=~'+rt.dataset.route+'&rtt=auto';if(window.__tg&&window.__tg.openLink){window.__tg.openLink(link);}else{window.open(link,'_blank');}return;}
   if(e.target.closest('[data-onb-open]')){openOnboarding();return;}
+  const pr=e.target.closest('[data-pair]'); if(pr){pairAction(pr.dataset.pair);return;}
   const act=e.target.closest('[data-act]'); if(act){const a=act.dataset.act;
     if(a==='onb')openOnboarding();
     else if(a==='bot'){const u='https://t.me/togethera_bot';if(window.__tg&&window.__tg.openTelegramLink)window.__tg.openTelegramLink(u);else window.open(u,'_blank');}
@@ -1016,6 +1063,7 @@ try{
       then(res,rej){return call(q).then(res,rej);}, catch(rej){return call(q).then(r=>r,rej);}};
       return b;};
     window.__sb={from}; window.__coupleId=null;
+    window.__op=(op,extra)=>call({op,...(extra||{})}); // couple ops: me / invite / leave / rename
     const {data,error}=await window.__sb.from('ideas').select('*').order('created_at',{ascending:false});
     if(error){console.warn('db error:',error.message);}
     else if(data&&data.length){
@@ -1027,6 +1075,9 @@ try{
     }
     const sres=await window.__sb.from('shopping').select('*').order('created_at',{ascending:true});
     if(sres&&sres.data&&sres.data.length)window.applyShop(sres.data.map(s=>({id:s.id,text:s.text,theme:s.theme,done:s.done,by:s.author})));
+    try{const meR=await window.__op('me');if(meR&&meR.data){const c=meR.data;window.__couple=c;
+      const pn=document.getElementById('pair-name');if(pn)pn.textContent=c.name||'Моя пара';
+      const cn=document.getElementById('couple-names');if(cn){const ns=(c.members||[]).map(m=>m.name).filter(Boolean);cn.textContent=ns.length?ns.join(' и '):(c.name||'Моя пара');}}}catch(e){}
   }
 }catch(e){console.warn('data load skipped:',e&&e.message||e);}
 {const b=document.getElementById('boot');if(b)b.classList.add('hide');}

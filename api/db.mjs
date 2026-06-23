@@ -1,5 +1,7 @@
 // Together — couple-scoped data proxy (Vercel). Identity = verified Telegram initData;
 // every operation is restricted to the caller's own couple. Purchase notifications fire inline.
+// Also handles couple-management ops (me / invite / leave / rename) via body.op.
+import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { verifyInitData } from '../lib/telegram.mjs';
 
@@ -40,6 +42,35 @@ async function notifyPartner(couple_id, actor) {
   await svc().from('shopping').update({ notified: true }).in('id', ids);
 }
 
+// Couple management: who am I with / invite a partner / leave to a fresh couple / rename.
+async function handleOp(op, body, user, couple_id, res) {
+  if (op === 'me') {
+    const c = await svc().from('couples').select('name').eq('id', couple_id).maybeSingle();
+    const members = await svc().from('app_users').select('telegram_id,name').eq('couple_id', couple_id);
+    return res.status(200).json({ data: { couple_id, name: c.data?.name || '', members: members.data || [], me: user.id } });
+  }
+  if (op === 'invite') {
+    const token = crypto.randomBytes(8).toString('hex');
+    const ins = await svc().from('invites').insert({ token, couple_id, created_by: user.id }).select('token').single();
+    if (ins.error) return res.status(500).json({ error: ins.error.message });
+    return res.status(200).json({ data: { token, link: `https://t.me/togethera_bot?start=inv_${token}` } });
+  }
+  if (op === 'leave') {
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Моя пара';
+    const nc = await svc().from('couples').insert({ name }).select('id').single();
+    if (nc.error) return res.status(500).json({ error: nc.error.message });
+    await svc().from('app_users').update({ couple_id: nc.data.id }).eq('telegram_id', user.id);
+    return res.status(200).json({ data: { couple_id: nc.data.id } });
+  }
+  if (op === 'rename') {
+    const name = String(body.name || '').trim().slice(0, 40);
+    if (!name) return res.status(400).json({ error: 'empty name' });
+    await svc().from('couples').update({ name }).eq('id', couple_id);
+    return res.status(200).json({ data: { name } });
+  }
+  return res.status(400).json({ error: 'bad op' });
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
@@ -49,10 +80,12 @@ export default async function handler(req, res) {
     const user = verifyInitData(body.initData, BOT_TOKEN);
     if (!user || !user.id) return res.status(401).json({ error: 'unauthorized' });
 
+    const couple_id = await resolveCouple(user);
+
+    if (body.op) return await handleOp(body.op, body, user, couple_id, res);
+
     const { table, action, values, match, select, single, order } = body;
     if (!TABLES[table]) return res.status(400).json({ error: 'bad table' });
-
-    const couple_id = await resolveCouple(user);
 
     let q;
     if (action === 'select') {
