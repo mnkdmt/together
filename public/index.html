@@ -229,6 +229,22 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
 .grabber{width:38px;height:4px;border-radius:999px;background:rgba(255,255,255,.2);margin:4px auto 12px}
 .sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;font-family:var(--font-serif);font-size:20px}
 .sheet-h button{font-family:var(--font-sans);font-size:14px;font-weight:600;color:var(--text-secondary)}
+.cap-row{display:flex;gap:8px;align-items:stretch;margin-bottom:6px}
+.cap-row .field{flex:1;margin:0}
+.cap-paste{display:flex;align-items:center;gap:5px;white-space:nowrap;padding:0 14px;border-radius:var(--r-field);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--text-secondary);font-size:13px;font-weight:600;font-family:inherit}
+.cap-paste .ic{width:15px;height:15px}
+.cap-paste:active{background:rgba(255,255,255,.13)}
+.cd-preview{display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,122,69,.22);border-radius:var(--r-field);padding:8px;margin:4px 0 14px}
+.cd-pv-img{width:52px;height:52px;flex:none;border-radius:12px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;color:var(--accent-ember);background:rgba(255,122,69,.12)}
+.cd-pv-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cd-pv-img .ic{width:20px;height:20px}
+.cd-pv-body{min-width:0;flex:1}
+.cd-pv-title{font-size:14px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-pv-meta{font-size:12px;color:var(--text-tertiary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-pv-cat{display:inline-block;margin-top:6px;font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,.08);border-radius:999px;padding:2px 9px}
+.cd-details-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;padding:11px 14px;margin:2px 0 8px;border-radius:var(--r-field);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:var(--text-secondary);font-size:13px;font-weight:500;font-family:inherit}
+.cd-details-toggle .chev{width:16px;height:16px;transition:transform .2s}
+.cd-details-toggle.open .chev{transform:rotate(180deg)}
 .field{width:100%;padding:14px;border-radius:var(--r-field);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--text-primary);font-size:15px;font-family:inherit;margin-bottom:12px}
 .field::placeholder{color:var(--text-tertiary)}
 .label{font-size:13px;color:var(--text-secondary);margin:8px 2px 9px;font-weight:600}
@@ -445,26 +461,38 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
       <div class="sheet-h"><button data-close-sheet>Отмена</button><span>Новая заметка</span><span style="width:48px"></span></div>
       <div class="cswitch"><button class="on" data-cmode="date">Свидание</button><button data-cmode="shop">Покупки</button></div>
       <div id="create-date">
-        <div class="label">Чем займёмся?</div>
-        <input class="field" id="cd-title" placeholder="напр. посмотреть «Дюну» дома" />
-        <div class="label">Ссылка (необязательно)</div>
-        <input class="field" id="cd-link" placeholder="на фильм, заведение, афишу…" />
-        <div class="label">Где</div>
-        <div class="seg glass" id="cd-venue" style="margin:0 0 12px">
-          <button class="on" data-venue="out">На выезд</button><button data-venue="home">Дома</button>
+        <div class="label">Ссылка или идея</div>
+        <div class="cap-row">
+          <input class="field" id="cd-capture" placeholder="вставь ссылку или впиши, чем займёмся" />
+          <button class="cap-paste" type="button" data-paste><svg class="ic"><use href="#i-link"/></svg>Вставить</button>
         </div>
-        <div class="label">Категория</div>
-        <div class="chips" id="cd-cat" style="margin:0 0 10px;padding:4px 0 10px;overflow:visible;flex-wrap:wrap">
-          <button class="chip on" data-cat="concert">Концерт</button><button class="chip" data-cat="film">Кино</button><button class="chip" data-cat="food">Еда</button><button class="chip" data-cat="trip">Поездка</button><button class="chip" data-cat="bar">Бар</button><button class="chip" data-cat="walk">Прогулка</button>
+        <div class="cd-preview" id="cd-preview" style="display:none">
+          <div class="cd-pv-img" id="cd-pv-img"></div>
+          <div class="cd-pv-body">
+            <div class="cd-pv-title" id="cd-pv-title"></div>
+            <div class="cd-pv-meta" id="cd-pv-meta"></div>
+            <span class="cd-pv-cat" id="cd-pv-cat" style="display:none"></span>
+          </div>
         </div>
         <div class="label">Насколько хочется?</div>
         <div class="iselect" id="cd-int">
-          <button class="iopt on" data-int="want"><svg class="ic"><use href="#i-flame"/></svg>Очень хочу</button>
-          <button class="iopt" data-int="interesting"><svg class="ic"><use href="#i-bookmark"/></svg>Интересно</button>
+          <button class="iopt" data-int="want"><svg class="ic"><use href="#i-flame"/></svg>Очень хочу</button>
+          <button class="iopt on" data-int="interesting"><svg class="ic"><use href="#i-bookmark"/></svg>Интересно</button>
           <button class="iopt" data-int="someday"><svg class="ic"><use href="#i-moon"/></svg>Когда-нибудь</button>
         </div>
-        <div class="label">Заметка (необязательно)</div>
-        <input class="field" id="cd-note" placeholder="чем зацепило…" />
+        <button class="cd-details-toggle" type="button" data-details-toggle><span>Детали — где, категория, заметка</span><svg class="ic chev"><use href="#i-chev"/></svg></button>
+        <div id="cd-details" style="display:none">
+          <div class="label">Где</div>
+          <div class="seg glass" id="cd-venue" style="margin:0 0 12px">
+            <button class="on" data-venue="out">На выезд</button><button data-venue="home">Дома</button>
+          </div>
+          <div class="label">Категория</div>
+          <div class="chips" id="cd-cat" style="margin:0 0 10px;padding:4px 0 10px;overflow:visible;flex-wrap:wrap">
+            <button class="chip" data-cat="concert">Концерт</button><button class="chip" data-cat="film">Кино</button><button class="chip" data-cat="food">Еда</button><button class="chip" data-cat="trip">Поездка</button><button class="chip" data-cat="bar">Бар</button><button class="chip" data-cat="walk">Прогулка</button>
+          </div>
+          <div class="label">Заметка</div>
+          <input class="field" id="cd-note" placeholder="чем зацепило…" />
+        </div>
         <button class="btn-ember" style="margin-top:6px" data-add-date><svg class="ic"><use href="#i-plus"/></svg> Добавить в список</button>
       </div>
       <div id="create-shop" style="display:none">
@@ -791,25 +819,83 @@ function toggleShop(id){
   if(window.__sb)window.__sb.from('shopping').update({done:s.done}).eq('id',id).then(()=>{},()=>{});
   renderShop();
 }
+let cdExtracted=null; // last link-extracted metadata for the create sheet
+function isUrl(s){s=(s||'').trim();return /^https?:\/\//i.test(s)||/^[\w-]+(\.[\w-]+)+\/?/.test(s);}
+function normUrl(s){s=(s||'').trim();return /^https?:\/\//i.test(s)?s:'https://'+s;}
+function hidePreview(){const pv=document.getElementById('cd-preview');if(pv)pv.style.display='none';}
+function renderPreview(d){
+  const pv=document.getElementById('cd-preview');if(!pv)return;
+  const im=document.getElementById('cd-pv-img');
+  im.style.background=d.image?'transparent':GRAD[d.category||'concert'];
+  im.innerHTML=d.image?`<img src="${d.image}" alt="" onerror="this.style.display='none'">`:ic('i-link');
+  document.getElementById('cd-pv-title').textContent=d.title||'Без названия';
+  let meta='';
+  if(d.date)meta+=fmtFull(d.date)+(d.time?', '+d.time:'');
+  if(d.location)meta+=(meta?' · ':'')+d.location;
+  document.getElementById('cd-pv-meta').textContent=meta;
+  const ce=document.getElementById('cd-pv-cat');
+  if(d.category){ce.style.display='';ce.textContent=(CATLABEL[d.category]||d.category)+' · авто';
+    document.querySelectorAll('#cd-cat .chip').forEach(c=>c.classList.toggle('on',c.dataset.cat===d.category));}
+  else ce.style.display='none';
+  pv.style.display='';
+}
+function maybeExtract(){
+  const cap=document.getElementById('cd-capture');if(!cap)return;
+  const v=(cap.value||'').trim();
+  if(!isUrl(v)){cdExtracted=null;hidePreview();return;}
+  if(!window.__extract)return; // browser PWA (no Telegram) — no backend to extract with
+  const url=normUrl(v);
+  const im=document.getElementById('cd-pv-img');
+  im.style.background=GRAD.concert;im.innerHTML=ic('i-link');
+  document.getElementById('cd-pv-title').textContent='Тяну инфо…';
+  document.getElementById('cd-pv-meta').textContent=v.replace(/^https?:\/\//,'').slice(0,42);
+  document.getElementById('cd-pv-cat').style.display='none';
+  document.getElementById('cd-preview').style.display='';
+  window.__extract(url).then(r=>{
+    if((cap.value||'').trim()!==v)return; // input changed while we waited
+    if(r&&r.data){cdExtracted={...r.data,url:r.data.url||url};renderPreview(cdExtracted);}
+    else{cdExtracted={url,title:''};hidePreview();}
+  },()=>{if((cap.value||'').trim()===v){cdExtracted={url,title:''};hidePreview();}});
+}
+function pasteCapture(){
+  const cap=document.getElementById('cd-capture');if(!cap)return;
+  if(navigator.clipboard&&navigator.clipboard.readText){
+    navigator.clipboard.readText().then(t=>{cap.value=(t||'').trim();maybeExtract();},()=>{cap.focus();toast('Не вышло прочитать буфер — вставь вручную');});
+  }else{cap.focus();toast('Вставь ссылку вручную');}
+}
+function resetCreateForm(){
+  cdExtracted=null;
+  const cap=document.getElementById('cd-capture');if(cap)cap.value='';
+  const note=document.getElementById('cd-note');if(note)note.value='';
+  hidePreview();
+  const det=document.getElementById('cd-details');if(det)det.style.display='none';
+  const dt=document.querySelector('[data-details-toggle]');if(dt)dt.classList.remove('open');
+  document.querySelectorAll('#cd-venue button').forEach(b=>b.classList.toggle('on',b.dataset.venue==='out'));
+  document.querySelectorAll('#cd-int .iopt').forEach(b=>b.classList.toggle('on',b.dataset.int==='interesting'));
+  document.querySelectorAll('#cd-cat .chip').forEach(c=>c.classList.remove('on'));
+}
 function createDateIdea(){
-  const g=id=>document.getElementById(id);
-  const title=(g('cd-title').value||'').trim();
-  const link=(g('cd-link').value||'').trim();
-  if(!title && !link){ toast('Впиши, чем займёмся, или вставь ссылку'); return; }
+  const cap=(document.getElementById('cd-capture').value||'').trim();
+  const ex=cdExtracted, asLink=isUrl(cap);
+  const link=asLink?((ex&&ex.url)||normUrl(cap)):'';
+  const title=(ex&&ex.title)||(asLink?'':cap);
+  if(!title && !link){ toast('Вставь ссылку или впиши, чем займёмся'); return; }
   const ven=document.querySelector('#cd-venue button.on'), venue=ven?ven.dataset.venue:'out';
-  const ce=document.querySelector('#cd-cat .chip.on'), cat=ce?ce.dataset.cat:(venue==='home'?'home':'concert');
+  const ce=document.querySelector('#cd-cat .chip.on');
+  const cat=(ex&&ex.category)||(ce?ce.dataset.cat:(venue==='home'?'home':'concert'));
   const ie=document.querySelector('#cd-int .iopt.on'), int=ie?ie.dataset.int:'interesting';
-  const note=(g('cd-note').value||'').trim();
+  const note=(document.getElementById('cd-note').value||'').trim();
   const ftitle=title||'Новая идея';
-  const tmp={id:'t'+Date.now(),title:ftitle,cat,img:'',url:link,int,note,price:'',loc:'',evdate:'',evtime:'',by:'me',status:'idea',date:'',time:'',venue};
+  const img=(ex&&ex.image)||'', loc=(ex&&ex.location)||'', evdate=(ex&&ex.date)||'', evtime=(ex&&ex.time)||'';
+  const tmp={id:'t'+Date.now(),title:ftitle,cat,img,url:link,int,note,price:'',loc,evdate,evtime,by:'me',status:'idea',date:'',time:'',venue};
   IDEAS.unshift(tmp);
   if(window.__sb){
-    window.__sb.from('ideas').insert({title:ftitle,url:link||null,category:cat,note:note||null,author:'me',intensity:int,status:'idea',venue}).select('id').single()
+    window.__sb.from('ideas').insert({title:ftitle,url:link||null,category:cat,note:note||null,author:'me',intensity:int,status:'idea',venue,og_image:img||null,location:loc||null,event_date:evdate||null,event_time:evtime||null}).select('id').single()
       .then(r=>{ if(r&&r.error){console.warn('idea insert failed:',r.error.message);} else if(r&&r.data){tmp.id=r.data.id;} },e=>{console.warn('idea insert error:',e);});
   }
-  g('cd-title').value='';g('cd-link').value='';g('cd-note').value='';
+  resetCreateForm();
   render();
-  g('create').classList.remove('open');document.body.style.overflow='';
+  document.getElementById('create').classList.remove('open');document.body.style.overflow='';
   showTab('home');
   toast('Добавил в список 💛');
 }
@@ -1035,7 +1121,9 @@ function bindSwipe(){
 document.addEventListener('click',e=>{
   const go=e.target.closest('[data-go]'); if(go){showTab(go.dataset.go);return;}
   const tab=e.target.closest('[data-tab]'); if(tab){showTab(tab.dataset.tab);return;}
-  if(e.target.closest('[data-open-create]')){setCMode('date');document.getElementById('create').classList.add('open');document.body.style.overflow='hidden';return;}
+  if(e.target.closest('[data-open-create]')){resetCreateForm();setCMode('date');document.getElementById('create').classList.add('open');document.body.style.overflow='hidden';return;}
+  if(e.target.closest('[data-paste]')){pasteCapture();return;}
+  {const dtg=e.target.closest('[data-details-toggle]');if(dtg){const d=document.getElementById('cd-details');const op=d.style.display==='none';d.style.display=op?'':'none';dtg.classList.toggle('open',op);return;}}
   if(e.target.closest('[data-open-create-shop]')){setCMode('shop');document.getElementById('create').classList.add('open');document.body.style.overflow='hidden';return;}
   const cm=e.target.closest('[data-cmode]'); if(cm){setCMode(cm.dataset.cmode);return;}
   const sth=e.target.closest('[data-shoptheme]'); if(sth){shopTheme=sth.dataset.shoptheme;sth.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));sth.classList.add('on');return;}
@@ -1098,6 +1186,7 @@ function initTelegram(){
 const inTelegram=initTelegram();
 document.addEventListener('change',e=>{const rp=e.target.closest('[data-replan]');if(rp){replanIdea(+rp.dataset.replan,rp.value);return;}
   const id=e.target.id;
+  if(id==='cd-capture'){maybeExtract();return;}
   if(id==='d-rel')saveDate('rel',e.target); else if(id==='d-wed')saveDate('wed',e.target);
   else if(id==='d-bday')saveDate('bday',e.target); else if(id==='d-bday-partner')saveDate('bdayp',e.target);
 });
@@ -1125,6 +1214,7 @@ try{
       return b;};
     window.__sb={from}; window.__coupleId=null;
     window.__op=(op,extra)=>call({op,...(extra||{})}); // couple ops: me / invite / leave / rename
+    window.__extract=(url)=>fetch('/api/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,url})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
     const {data,error}=await window.__sb.from('ideas').select('*').order('created_at',{ascending:false});
     if(error){console.warn('db error:',error.message);}
     else if(data&&data.length){
