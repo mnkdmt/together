@@ -38,7 +38,7 @@ function dateFromUrl(u) {
   if (!u) return null;
   const q = u.match(/[?&](?:filterDates|date|startDate)=(\d{4}-\d{2}-\d{2})/i);
   if (q) return q[1];
-  const slug = u.match(/[-/](\d{4}-\d{2}-\d{2})(?=[-/?#]|$)/);
+  const slug = u.match(/[-/_](\d{4}-\d{2}-\d{2})(?=[-/?#]|$)/);
   if (slug) return slug[1];
   return null;
 }
@@ -66,23 +66,29 @@ export async function extractEvent(url) {
   out.image = metaTag(html, 'og:image') || out.image;
   const ogTitle = metaTag(html, 'og:title'), ogDesc = metaTag(html, 'og:description');
 
-  // 1) JSON-LD schema.org Event — the gold source for name/startDate/location
-  const lds = [...html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)];
-  for (const m of lds) {
+  // 1) JSON-LD schema.org Event — the gold source for name/startDate/location.
+  // Collect Events from every ld+json block (aggregators like kassir list many).
+  const events = [];
+  for (const m of [...html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)]) {
     try {
       let d = JSON.parse(m[1].trim());
       let arr = Array.isArray(d) ? d : (d['@graph'] || [d]);
       if (!Array.isArray(arr)) arr = [arr];
-      const evt = arr.find(o => o && /Event/i.test(String(o['@type'] || '')));
-      if (evt) {
-        out.title = evt.name || out.title;
-        if (evt.startDate) { const s = String(evt.startDate); out.date = (s.match(/\d{4}-\d{2}-\d{2}/) || [])[0] || out.date; out.time = (s.match(/T(\d{2}:\d{2})/) || [])[1] || out.time; }
-        const loc = evt.location;
-        if (loc) out.location = (typeof loc === 'string' ? loc : (loc.name || loc.address?.streetAddress || loc.address?.addressLocality)) || out.location;
-        if (!out.image) out.image = typeof evt.image === 'string' ? evt.image : (evt.image?.url || (Array.isArray(evt.image) ? evt.image[0] : null));
-        break;
-      }
+      for (const o of arr) if (o && /Event/i.test(String(o['@type'] || ''))) events.push(o);
     } catch (e) { /* malformed ld+json — skip */ }
+  }
+  // Pick THE page's event: prefer one whose url matches this page; if there's exactly one,
+  // trust it; if several and none matches, they're "recommended events" (kassir) — ignore
+  // JSON-LD and let OG tags speak for the actual page.
+  const samePath = (a, b) => { try { return new URL(a).pathname.replace(/\/$/, '') === new URL(b).pathname.replace(/\/$/, ''); } catch { return false; } };
+  let evt = events.find(o => o.url && samePath(o.url, finalUrl));
+  if (!evt && events.length === 1) evt = events[0];
+  if (evt) {
+    out.title = evt.name || out.title;
+    if (evt.startDate) { const s = String(evt.startDate); out.date = (s.match(/\d{4}-\d{2}-\d{2}/) || [])[0] || out.date; out.time = (s.match(/T(\d{2}:\d{2})/) || [])[1] || out.time; }
+    const loc = evt.location;
+    if (loc) out.location = (typeof loc === 'string' ? loc : (loc.name || loc.address?.streetAddress || loc.address?.addressLocality)) || out.location;
+    if (!out.image) out.image = typeof evt.image === 'string' ? evt.image : (evt.image?.url || (Array.isArray(evt.image) ? evt.image[0] : null));
   }
 
   // 2) Fall back to regex over OG title + description

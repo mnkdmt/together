@@ -891,7 +891,7 @@ function createDateIdea(){
   IDEAS.unshift(tmp);
   if(window.__sb){
     window.__sb.from('ideas').insert({title:ftitle,url:link||null,category:cat,note:note||null,author:'me',intensity:int,status:'idea',venue,og_image:img||null,location:loc||null,event_date:evdate||null,event_time:evtime||null}).select('id').single()
-      .then(r=>{ if(r&&r.error){console.warn('idea insert failed:',r.error.message);} else if(r&&r.data){tmp.id=r.data.id;} },e=>{console.warn('idea insert error:',e);});
+      .then(r=>{ if(r&&r.error){console.warn('idea insert failed:',r.error.message);} else if(r&&r.data){tmp.id=r.data.id;render();} },e=>{console.warn('idea insert error:',e);});
   }
   resetCreateForm();
   render();
@@ -914,7 +914,7 @@ function delIdea(id){
 
 // detail
 function openDetail(id){
-  const i=IDEAS.find(x=>x.id===id); if(!i)return;
+  const i=IDEAS.find(x=>String(x.id)===String(id)); if(!i)return;
   const planned=i.status==='planned';
   let badge = planned
     ? `<span class="status-pill">${ic('i-cal')} Запланировано</span><span class="meta">${i.by==='she'?'добавила Аня':'добавил Дима'}</span>`
@@ -1052,32 +1052,32 @@ function toast(msg){let t=document.getElementById('toast');if(!t){t=document.cre
 // actions
 function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function planIdea(id){
-  const i=IDEAS.find(x=>x.id===id); if(!i)return;
+  const i=IDEAS.find(x=>String(x.id)===String(id)); if(!i)return;
   i.status='planned';
   i.date = i.date || i.evdate || isoToday();
   i.time = i.time || i.evtime || '';
-  if(window.__sb)window.__sb.from('ideas').update({status:'planned',planned_date:i.date,planned_time:i.time}).eq('id',id).then(()=>{},()=>{});
-  render(); openDetail(id);
+  if(window.__sb)window.__sb.from('ideas').update({status:'planned',planned_date:i.date,planned_time:i.time}).eq('id',i.id).then(()=>{},()=>{});
+  render(); openDetail(i.id);
 }
 function replanIdea(id,date){
-  const i=IDEAS.find(x=>x.id===id); if(!i||!date)return;
+  const i=IDEAS.find(x=>String(x.id)===String(id)); if(!i||!date)return;
   i.date=date;
-  if(window.__sb)window.__sb.from('ideas').update({planned_date:date}).eq('id',id).then(()=>{},()=>{});
-  render(); openDetail(id);
+  if(window.__sb)window.__sb.from('ideas').update({planned_date:date}).eq('id',i.id).then(()=>{},()=>{});
+  render(); openDetail(i.id);
 }
 let doneId=null;
 function openDone(id){
-  doneId=id; const i=IDEAS.find(x=>x.id===id); if(!i)return;
+  const i=IDEAS.find(x=>String(x.id)===String(id)); if(!i)return; doneId=i.id;
   document.getElementById('done-photo').style.background=GRAD[i.cat];
   document.getElementById('done-head').innerHTML=`<div style="font-family:var(--font-serif);font-size:20px">${i.title}</div><div class="meta">${i.date?fmtFull(i.date):''} ${i.time||''}</div>`;
   document.getElementById('done').classList.add('open'); document.body.style.overflow='hidden';
 }
 function saveDone(){
-  const i=IDEAS.find(x=>x.id===doneId); if(!i)return;
+  const i=IDEAS.find(x=>String(x.id)===String(doneId)); if(!i)return;
   const mood=document.querySelector('#mood-select .iopt.on')?.innerText.trim()||'Огонь';
   MEMORIES.unshift({t:i.title,d:i.date?fmtFull(i.date)+' 2026':'сегодня',cat:i.cat,mood,note:i.note,photos:1});
   i.status='done';
-  if(window.__sb)window.__sb.from('ideas').update({status:'done',mood}).eq('id',doneId).then(()=>{},()=>{});
+  if(window.__sb)window.__sb.from('ideas').update({status:'done',mood}).eq('id',i.id).then(()=>{},()=>{});
   document.getElementById('done').classList.remove('open');
   closeDetail(); document.body.style.overflow='';
   render(); showTab('mem');
@@ -1138,8 +1138,8 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-save-done]')){saveDone();return;}
   if(e.target.closest('#open-list')){showTab('list');return;}
   if(e.target.closest('[data-close-detail]')){closeDetail();return;}
-  const plan=e.target.closest('[data-plan]'); if(plan){planIdea(+plan.dataset.plan);return;}
-  const done=e.target.closest('[data-done]'); if(done){openDone(+done.dataset.done);return;}
+  const plan=e.target.closest('[data-plan]'); if(plan){planIdea(plan.dataset.plan);return;}
+  const done=e.target.closest('[data-done]'); if(done){openDone(done.dataset.done);return;}
   const rep=e.target.closest('[data-repeat]'); if(rep){closeDetail();showTab('list');return;}
   const sh=e.target.closest('[data-share]'); if(sh){shareIdea(sh.dataset.share);return;}
   const di=e.target.closest('[data-delidea]'); if(di){confirmThen('Удалить идею из списка?',()=>delIdea(di.dataset.delidea));return;}
@@ -1160,7 +1160,7 @@ document.addEventListener('click',e=>{
   const chip=e.target.closest('#create .chip'); if(chip){chip.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));chip.classList.add('on');return;}
   const mem=e.target.closest('[data-mem]'); if(mem){openMemory(+mem.dataset.mem);return;}
   const card=e.target.closest('[data-idea]');
-  if(card && !e.target.closest('.btn-ember') && card.dataset.swiped!=='1'){openDetail(+card.dataset.idea);}
+  if(card && !e.target.closest('.btn-ember') && card.dataset.swiped!=='1'){openDetail(card.dataset.idea);}
 });
 
 window.applyRemote=function(rIdeas,rMems){if(rIdeas)IDEAS=rIdeas;if(rMems)MEMORIES=rMems;render();};
@@ -1184,7 +1184,7 @@ function initTelegram(){
   return true;
 }
 const inTelegram=initTelegram();
-document.addEventListener('change',e=>{const rp=e.target.closest('[data-replan]');if(rp){replanIdea(+rp.dataset.replan,rp.value);return;}
+document.addEventListener('change',e=>{const rp=e.target.closest('[data-replan]');if(rp){replanIdea(rp.dataset.replan,rp.value);return;}
   const id=e.target.id;
   if(id==='cd-capture'){maybeExtract();return;}
   if(id==='d-rel')saveDate('rel',e.target); else if(id==='d-wed')saveDate('wed',e.target);
