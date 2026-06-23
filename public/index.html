@@ -430,6 +430,7 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
       </div>
     </div>
     <div class="settings glass" id="settings-list"></div>
+    <div id="admin-stats" style="display:none;text-align:center;font-size:13px;font-weight:600;color:var(--accent-ember);margin:4px 2px 0"></div>
     <div class="divider-note">Together · v1 · тёмный Liquid Glass</div>
   </section>
 
@@ -923,6 +924,7 @@ function applyCouple(c){
   const ne=document.getElementById('next-event');
   if(ne){const up=evs.filter(e=>e.d>=0).sort((a,b)=>a.d-b.d)[0];
     if(up){ne.style.display='';ne.textContent=up.t.trim()+(up.d===0?' — сегодня! 🎉':up.d===1?' — завтра':' · через '+plDays(up.d));}else ne.style.display='none';}
+  if(c.is_admin&&window.__op){window.__op('stats').then(r=>{const a=document.getElementById('admin-stats');if(a&&r&&r.data){a.style.display='';a.textContent='👥 '+r.data.users+' пользователей · 💞 '+r.data.couples+' пар';}},()=>{});}
 }
 function saveDate(kind,el){
   if(!window.__op){toast('Доступно только в Telegram');return;}

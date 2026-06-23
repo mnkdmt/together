@@ -59,6 +59,13 @@ bot.command('share', async (ctx) => {
   await ctx.reply('Расскажи о Together другой паре — пусть тоже не теряются, чем заняться вместе 💛', { reply_markup: shareKb() });
 });
 
+bot.command('stats', async (ctx) => {
+  if (String(ctx.from?.id) !== ME_ID) return; // owner only
+  const u = await supa.from('app_users').select('*', { count: 'exact', head: true });
+  const cc = await supa.from('couples').select('*', { count: 'exact', head: true });
+  await ctx.reply(`📊 Together\n👥 пользователей: ${u.count || 0}\n💞 пар: ${cc.count || 0}`);
+});
+
 bot.on('message:text', async (ctx) => {
   const url = (ctx.message.text.match(/https?:\/\/\S+/) || [])[0];
   const author = String(ctx.from?.id) === ME_ID ? 'me' : 'she';

@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyInitData } from '../lib/telegram.mjs';
 
 const { BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE } = process.env;
+const ADMIN_ID = process.env.ME_USER_ID || '681332519'; // only the owner sees app-wide stats
 const TABLES = { ideas: true, shopping: true };
 
 let _svc;
@@ -53,7 +54,13 @@ async function handleOp(op, body, user, couple_id, res) {
     return res.status(200).json({ data: {
       couple_id, name: c.data?.name || '',
       relationship_start: c.data?.relationship_start || null, wedding_date: c.data?.wedding_date || null,
-      members: members.data || [], me: user.id } });
+      members: members.data || [], me: user.id, is_admin: String(user.id) === ADMIN_ID } });
+  }
+  if (op === 'stats') {
+    if (String(user.id) !== ADMIN_ID) return res.status(403).json({ error: 'forbidden' });
+    const u = await svc().from('app_users').select('*', { count: 'exact', head: true });
+    const cc = await svc().from('couples').select('*', { count: 'exact', head: true });
+    return res.status(200).json({ data: { users: u.count || 0, couples: cc.count || 0 } });
   }
   if (op === 'setdates') {
     const patch = {};
