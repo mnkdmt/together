@@ -35,6 +35,11 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 img{display:block}
 
 #app{position:relative;width:100%;max-width:430px;min-height:100dvh;background:var(--bg-base);overflow:hidden}
+#boot{position:fixed;inset:0;z-index:100;background:var(--bg-base);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s ease}
+#boot.hide{opacity:0;pointer-events:none}
+#boot .bflame{font-size:54px;color:var(--accent-ember);filter:drop-shadow(0 0 20px rgba(255,122,69,.55));animation:bootpulse 1.5s ease-in-out infinite}
+#boot .bname{font-family:var(--font-serif);font-size:26px;color:var(--text-primary);letter-spacing:.5px;opacity:.92}
+@keyframes bootpulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.13);opacity:1}}
 .ambient{position:fixed;max-width:430px;width:100%;height:100dvh;top:0;pointer-events:none;z-index:0;overflow:hidden}
 .ambient::before,.ambient::after{content:"";position:absolute;border-radius:50%;filter:blur(11px);opacity:.5}
 .ambient::before{width:280px;height:280px;right:-70px;top:-40px;background:radial-gradient(closest-side,var(--accent-glow),transparent)}
@@ -287,6 +292,7 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
 </style>
 </head>
 <body>
+<div id="boot"><svg class="ic bflame"><use href="#i-flame"/></svg><div class="bname">Together</div></div>
 <div id="app">
   <div class="ambient"></div>
 
@@ -989,6 +995,7 @@ const inTelegram=initTelegram();
 document.addEventListener('change',e=>{const rp=e.target.closest('[data-replan]');if(rp)replanIdea(+rp.dataset.replan,rp.value);});
 
 render();
+setTimeout(function(){var b=document.getElementById('boot');if(b)b.classList.add('hide');},9000); // safety: never trap on the loader
 try{if(!inTelegram&&!localStorage.getItem('onb_done'))openOnboarding();}catch(e){}
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 </script>
@@ -996,6 +1003,7 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch
 try{
   const initData=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData)||'';
   if(initData){
+    window.applyRemote([],[]); window.applyShop([]); // Mini App: drop demo seed so only real data ever shows
     // Couple-scoped backend proxy. Identity = Telegram initData (verified server-side);
     // every op is restricted to the user's own couple. Mimics the supabase-js chain we already use.
     const call=(p)=>fetch('/api/db',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,...p})})
@@ -1021,6 +1029,7 @@ try{
     if(sres&&sres.data&&sres.data.length)window.applyShop(sres.data.map(s=>({id:s.id,text:s.text,theme:s.theme,done:s.done,by:s.author})));
   }
 }catch(e){console.warn('data load skipped:',e&&e.message||e);}
+{const b=document.getElementById('boot');if(b)b.classList.add('hide');}
 </script>
 </body>
 </html>
