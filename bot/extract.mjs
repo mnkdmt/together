@@ -48,6 +48,28 @@ function metaTag(html, p) {
     || html.match(new RegExp('<meta[^>]+content=["\\x27]([^"\\x27]+)["\\x27][^>]+(?:property|name)=["\\x27]' + p, 'i')) || [])[1];
 }
 
+// Fallback when a page has no og:image — pick a real content <img> from the HTML.
+// Skips icons/logos/trackers/social; prefers hero/main/banner images.
+function firstContentImage(html, baseUrl) {
+  const skip = /icon|logo|favicon|sprite|placeholder|tracker|pixel|spacer|\.svg|\.gif|vk\.com|t\.me|facebook|telegram|whatsapp/i;
+  const cands = [];
+  for (const m of html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)) {
+    const src = m[1];
+    if (!/^https?:|^\//.test(src)) continue;
+    if (!/\.(jpe?g|png|webp)(\?|$)/i.test(src)) continue;
+    if (skip.test(src)) continue;
+    let abs; try { abs = new URL(src, baseUrl).toString(); } catch { continue; }
+    cands.push(abs);
+  }
+  if (!cands.length) return null;
+  return cands.find((u) => /main|hero|banner|cover|poster|header|promo/i.test(u)) || cands[0];
+}
+
+function titleTag(html) {
+  const m = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  return m ? m[1].trim() : null;
+}
+
 function finalizeTitle(out, url) {
   out.title = String(out.title || url).split(/\s*[|/]\s*/)[0].replace(/\s*[—–-]\s*$/, '').trim().slice(0, 90) || url;
   return out;
@@ -99,7 +121,10 @@ function parseInto(out, html, pageUrl) {
     const pm = (ogDesc || ogTitle || '').match(/\bв\s+(парк[еа]?|клуб[еа]?|театр[еа]?|центр[еа]?|музе[ея]|галере[ея]|бар[еу]?|кафе|ресторане?|зал[еа]?)\s+([«"][^»"]{2,40}[»"]|[А-ЯЁ][^,.!?]{2,40})/i);
     if (pm) out.location = (pm[1] + ' ' + pm[2]).replace(/\s+/g, ' ').trim().slice(0, 60);
   }
-  out.title = out.title || ogTitle;
+  // No og:image on the page → try twitter:image, then a real content <img>.
+  if (!out.image) out.image = metaTag(html, 'twitter:image') || firstContentImage(html, pageUrl) || null;
+  // No og:title → twitter:title → the plain <title> tag (beats falling back to the bare URL).
+  out.title = out.title || ogTitle || metaTag(html, 'twitter:title') || titleTag(html);
 }
 
 export async function extractEvent(url) {
