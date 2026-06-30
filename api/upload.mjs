@@ -7,7 +7,7 @@ import { verifyInitData } from '../lib/telegram.mjs';
 
 const { BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE } = process.env;
 export const maxDuration = 30;
-const BUCKET = 'memories';
+const BUCKETS = { photo: 'memories', ticket: 'tickets' }; // private buckets per kind
 
 let _svc;
 function svc() {
@@ -35,14 +35,17 @@ export default async function handler(req, res) {
     if (!user || !user.id) return res.status(401).json({ error: 'unauthorized' });
     const couple_id = await resolveCouple(user);
 
+    const bucket = BUCKETS[body.kind === 'ticket' ? 'ticket' : 'photo'];
     const raw = String(body.image || '');
-    const m = raw.match(/^data:image\/\w+;base64,(.+)$/);
-    const buf = Buffer.from(m ? m[1] : raw, 'base64');
-    if (!buf.length || buf.length > 6 * 1024 * 1024) return res.status(400).json({ error: 'bad image' });
+    const m = raw.match(/^data:([\w/+.-]+);base64,(.+)$/);
+    const mime = m ? m[1] : 'image/jpeg';
+    const buf = Buffer.from(m ? m[2] : raw, 'base64');
+    if (!buf.length || buf.length > 4 * 1024 * 1024) return res.status(400).json({ error: 'bad file' }); // Vercel body cap
+    const ext = mime === 'application/pdf' ? 'pdf' : (mime.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
 
-    await svc().storage.createBucket(BUCKET, { public: false }).catch(() => {}); // idempotent
-    const path = `${couple_id}/${crypto.randomUUID()}.jpg`;
-    const { error } = await svc().storage.from(BUCKET).upload(path, buf, { contentType: 'image/jpeg', upsert: false });
+    await svc().storage.createBucket(bucket, { public: false }).catch(() => {}); // idempotent
+    const path = `${couple_id}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await svc().storage.from(bucket).upload(path, buf, { contentType: mime, upsert: false });
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json({ data: { path } });
   } catch (e) {

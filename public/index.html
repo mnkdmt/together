@@ -543,6 +543,9 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
     </div>
   </div>
 
+  <input type="file" id="mem-file" accept="image/*" style="display:none">
+  <input type="file" id="ticket-file" accept="application/pdf,image/*" style="display:none">
+
   <!-- TASTE SHEET -->
   <div class="sheet-wrap" id="taste">
     <div class="sheet-bg" data-close-taste></div>
@@ -1077,6 +1080,7 @@ function delIdea(id){
 // detail
 function openDetail(id){
   const i=IDEAS.find(x=>String(x.id)===String(id)); if(!i)return;
+  curIdeaId=i.id;
   const planned=i.status==='planned';
   let badge = planned
     ? `<span class="status-pill">${ic('i-cal')} Запланировано</span><span class="meta">${i.by==='she'?'добавила Аня':'добавил Дима'}</span>`
@@ -1104,6 +1108,9 @@ function openDetail(id){
         ${i.price?`<div class="drowx"><span class="meta">${ic('i-cart')} Цена</span><b style="font-size:14px">${i.price}</b></div>`:''}
       </div>`:''}
       ${i.url?`<a href="${i.url}" target="_blank" rel="noopener" class="btn-glass glass" style="margin:0 0 4px;text-decoration:none">${ic('i-link')} Открыть ссылку</a>`:''}
+      ${(i.ticketUrl||i.ticket)
+        ? `<div style="display:flex;gap:8px;margin:0 0 4px"><button class="btn-glass glass" style="flex:1" data-open-ticket>${ic('i-package')} Открыть билет</button><button class="btn-glass glass" style="width:54px" data-attach-ticket aria-label="Заменить билет">${ic('i-repeat')}</button></div>`
+        : `<button class="btn-glass glass" style="margin:0 0 4px" data-attach-ticket>${ic('i-package')} Прикрепить билет</button>`}
       ${i.loc?`<div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.07);margin:4px 0 10px;background:#14111c">
         <iframe src="https://yandex.ru/map-widget/v1/?text=${encodeURIComponent(i.loc)}&z=15" width="100%" height="172" style="border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
@@ -1114,7 +1121,7 @@ function openDetail(id){
   d.classList.add('open'); document.body.style.overflow='hidden';
 }
 function openMemory(idx){
-  const m=MEMORIES[idx]; if(!m)return;
+  const m=MEMORIES[idx]; if(!m)return; curMemIdx=idx;
   const strip = m.img
     ? `<div class="ph" style="position:relative;overflow:hidden">${imgEl(m.img)}</div>`
     : Array.from({length:Math.min(m.photos,3)}).map((_,n)=>`<div class="ph" style="background:${GRAD[m.cat]};opacity:${0.9-n*0.12}"></div>`).join('') + (m.photos>3?`<div class="ph more">+${m.photos-3}</div>`:'');
@@ -1129,6 +1136,7 @@ function openMemory(idx){
       <div class="drow"><span class="badge-inline glass" style="color:#FFE0CF">${ic('i-flame')} ${m.mood}</span></div>
       <div class="quote" style="font-size:18px;margin:6px 0 14px">«${m.note}»</div>
       <div class="memstrip">${strip}</div>
+      <button class="btn-ember" style="margin-top:8px" data-mem-photo>${ic('i-camera')} ${m.img?'Заменить фото':'Добавить фото'}</button>
       <button class="btn-glass glass" style="margin-top:8px" data-repeat="${idx}">${ic('i-repeat')} Повторить свидание</button>
     </div>`;
   d.classList.add('open'); document.body.style.overflow='hidden';
@@ -1233,7 +1241,35 @@ function replanIdea(id,date){
   if(window.__sb)window.__sb.from('ideas').update({planned_date:date}).eq('id',i.id).then(()=>{},()=>{});
   render(); openDetail(i.id);
 }
-let doneId=null, donePhotoData=null;
+let doneId=null, donePhotoData=null, curIdeaId=null, curMemIdx=null;
+function fileToData(file,cb){
+  if(!file){cb(null);return;}
+  if(file.type==='application/pdf'){ const r=new FileReader(); r.onload=()=>cb(r.result); r.onerror=()=>cb(null); r.readAsDataURL(file); }
+  else resizeImage(file,1600,0.85,cb);
+}
+function onMemFile(input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f)return;
+  const m=MEMORIES[curMemIdx]; if(!m)return;
+  fileToData(f,data=>{ if(!data){toast('Не вышло прочитать фото');return;}
+    m.img=data;
+    if(window.__upload&&m.id)window.__upload(data,'photo').then(r=>{ if(r&&r.data&&r.data.path&&window.__sb)window.__sb.from('ideas').update({done_photo:r.data.path}).eq('id',m.id).then(()=>{},()=>{}); },()=>{});
+    render(); openMemory(curMemIdx); toast('Фото добавлено 💛');
+  });
+}
+function onTicketFile(input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f)return;
+  const i=IDEAS.find(x=>String(x.id)===String(curIdeaId)); if(!i)return;
+  fileToData(f,data=>{ if(!data){toast('Не вышло прочитать файл');return;}
+    i.ticket='local'; i.ticketUrl=data;
+    if(window.__upload)window.__upload(data,'ticket').then(r=>{ if(r&&r.data&&r.data.path){ i.ticket=r.data.path; if(window.__sb)window.__sb.from('ideas').update({ticket:r.data.path}).eq('id',i.id).then(()=>{},()=>{}); } },()=>{});
+    openDetail(i.id); toast('Билет прикреплён 🎟');
+  });
+}
+function openTicket(){
+  const i=IDEAS.find(x=>String(x.id)===String(curIdeaId)); if(!i||!i.ticketUrl){toast('Билет ещё грузится…');return;}
+  if(window.__tg&&window.__tg.openLink){try{window.__tg.openLink(i.ticketUrl);return;}catch(e){}}
+  window.open(i.ticketUrl,'_blank');
+}
 function resetDonePhoto(){
   donePhotoData=null;
   const pic=document.getElementById('done-pic'),prev=document.getElementById('done-prev'),f=document.getElementById('done-file');
@@ -1333,6 +1369,9 @@ document.addEventListener('click',e=>{
   const done=e.target.closest('[data-done]'); if(done){openDone(done.dataset.done);return;}
   const rep=e.target.closest('[data-repeat]'); if(rep){closeDetail();showTab('list');return;}
   const sh=e.target.closest('[data-share]'); if(sh){shareIdea(sh.dataset.share);return;}
+  if(e.target.closest('[data-mem-photo]')){const f=document.getElementById('mem-file');if(f)f.click();return;}
+  if(e.target.closest('[data-attach-ticket]')){const f=document.getElementById('ticket-file');if(f)f.click();return;}
+  if(e.target.closest('[data-open-ticket]')){openTicket();return;}
   const di=e.target.closest('[data-delidea]'); if(di){confirmThen('Удалить идею из списка?',()=>delIdea(di.dataset.delidea));return;}
   const rt=e.target.closest('[data-route]'); if(rt){const link='https://yandex.ru/maps/?rtext=~'+rt.dataset.route+'&rtt=auto';if(window.__tg&&window.__tg.openLink){window.__tg.openLink(link);}else{window.open(link,'_blank');}return;}
   if(e.target.closest('[data-onb-open]')){openOnboarding();return;}
@@ -1387,6 +1426,8 @@ const inTelegram=initTelegram();
 document.addEventListener('change',e=>{const rp=e.target.closest('[data-replan]');if(rp){replanIdea(rp.dataset.replan,rp.value);return;}
   const id=e.target.id;
   if(id==='done-file'){onDonePhoto(e.target);return;}
+  if(id==='mem-file'){onMemFile(e.target);return;}
+  if(id==='ticket-file'){onTicketFile(e.target);return;}
   if(id==='cd-capture'){maybeExtract();return;}
   if(id==='d-rel')saveDate('rel',e.target); else if(id==='d-wed')saveDate('wed',e.target);
   else if(id==='d-bday')saveDate('bday',e.target); else if(id==='d-bday-partner')saveDate('bdayp',e.target);
@@ -1417,13 +1458,13 @@ try{
     window.__op=(op,extra)=>call({op,...(extra||{})}); // couple ops: me / invite / leave / rename
     window.__extract=(url)=>fetch('/api/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,url})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
     window.__afisha=(opts)=>fetch('/api/afisha',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,...(opts||{})})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
-    window.__upload=(image)=>fetch('/api/upload',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,image})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
+    window.__upload=(image,kind)=>fetch('/api/upload',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,image,kind:kind||'photo'})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
     const {data,error}=await window.__sb.from('ideas').select('*').order('created_at',{ascending:false});
     if(error){console.warn('db error:',error.message);}
     else if(data&&data.length){
-      const map=r=>({id:r.id,title:r.title,cat:r.category||'concert',img:r.og_image,url:r.url||'',int:r.intensity,note:r.note||'',price:r.price||'',loc:r.location||'',evdate:r.event_date||'',evtime:r.event_time||'',by:r.author,status:r.status,date:r.planned_date,time:r.planned_time,venue:r.venue||'out',source:r.source||'manual',liked:r.liked||false,ext:r.ext_id||null,lat:r.lat,lon:r.lon});
+      const map=r=>({id:r.id,title:r.title,cat:r.category||'concert',img:r.og_image,url:r.url||'',int:r.intensity,note:r.note||'',price:r.price||'',loc:r.location||'',evdate:r.event_date||'',evtime:r.event_time||'',by:r.author,status:r.status,date:r.planned_date,time:r.planned_time,venue:r.venue||'out',source:r.source||'manual',liked:r.liked||false,ext:r.ext_id||null,lat:r.lat,lon:r.lon,ticket:r.ticket||null,ticketUrl:r.ticket_url||null});
       const ideas=data.filter(r=>r.status!=='done').map(map);
-      const mems=data.filter(r=>r.status==='done').map(r=>({t:r.title,d:r.planned_date||'',cat:r.category||'film',mood:r.mood||'Огонь',note:r.note||'',photos:r.done_photo_url?1:0,img:r.done_photo_url||''}));
+      const mems=data.filter(r=>r.status==='done').map(r=>({id:r.id,t:r.title,d:r.planned_date||'',cat:r.category||'film',mood:r.mood||'Огонь',note:r.note||'',photos:r.done_photo_url?1:0,img:r.done_photo_url||''}));
       window.applyRemote(ideas,mems);
       console.log('Together: loaded '+data.length+' rows via /db');
     }
