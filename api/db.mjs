@@ -6,7 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyInitData } from '../lib/telegram.mjs';
 
 const { BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE } = process.env;
-const ADMIN_ID = process.env.ME_USER_ID || '681332519'; // only the owner sees app-wide stats
+const ADMIN_ID = process.env.ME_USER_ID || '681332519'; // only the owner sees app-wide stats / broadcasts
+export const maxDuration = 60; // owner broadcast loops over users
 const TABLES = { ideas: true, shopping: true };
 
 let _svc;
@@ -63,6 +64,17 @@ async function handleOp(op, body, user, couple_id, res) {
     const u = await svc().from('app_users').select('*', { count: 'exact', head: true });
     const cc = await svc().from('couples').select('*', { count: 'exact', head: true });
     return res.status(200).json({ data: { users: u.count || 0, couples: cc.count || 0 } });
+  }
+  if (op === 'broadcast') { // owner-only announcement to every bot user
+    if (String(user.id) !== ADMIN_ID) return res.status(403).json({ error: 'forbidden' });
+    const text = String(body.text || '').trim().slice(0, 4000);
+    if (!text) return res.status(400).json({ error: 'no text' });
+    const { data: rows } = await svc().from('app_users').select('telegram_id');
+    const ids = [...new Set((rows || []).map((r) => r.telegram_id).filter(Boolean))];
+    if (body.dry) return res.status(200).json({ data: { total: ids.length, sent: 0, dry: true } });
+    let sent = 0, failed = 0;
+    for (const id of ids) { const r = await tg('sendMessage', { chat_id: id, text }); if (r && r.ok) sent++; else failed++; }
+    return res.status(200).json({ data: { total: ids.length, sent, failed } });
   }
   if (op === 'setdates') {
     const patch = {};
