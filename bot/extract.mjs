@@ -71,8 +71,17 @@ function titleTag(html) {
 }
 
 function finalizeTitle(out, url) {
-  out.title = String(out.title || url).split(/\s*[|/]\s*/)[0].replace(/\s*[—–-]\s*$/, '').trim().slice(0, 90) || url;
+  let t = out.title;
+  if (!t) { try { t = new URL(out.url || url).hostname.replace(/^www\./, ''); } catch { t = url; } }
+  out.title = String(t).split(/\s*\|\s*/)[0].replace(/\s*[—–-]\s*$/, '').trim().slice(0, 90) || url;
   return out;
+}
+
+// Anti-bot / captcha walls (Yandex SmartCaptcha, Cloudflare) — the page we got is a
+// challenge, not the content. Detect so we don't ingest "Яндекс" + a captcha logo.
+function looksBlocked(html, finalUrl) {
+  return /showcaptcha|smartcaptcha|smart-captcha|\/captcha\b/i.test(finalUrl || '')
+    || /SmartCaptcha|smart-captcha|showcaptcha|checking your browser|Just a moment|Attention Required|cf-chl|подтвердите,?\s*что\s*вы\s*не\s*робот/i.test(html || '');
 }
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15';
@@ -133,17 +142,20 @@ export async function extractEvent(url) {
   // Primary: fetch the page directly (fast; works for any site with server-rendered metadata).
   try {
     const r = await fetchText(url);
-    finalUrl = r.finalUrl; out.url = cleanUrl(finalUrl);
-    parseInto(out, r.html, finalUrl);
+    if (looksBlocked(r.html, r.finalUrl)) {
+      out.url = cleanUrl(url); // captcha wall — keep the real link, ignore the challenge page
+    } else {
+      finalUrl = r.finalUrl; out.url = cleanUrl(finalUrl);
+      parseInto(out, r.html, finalUrl);
+    }
   } catch (e) { console.warn('direct fetch failed:', e?.message || e); }
-  // Fallback: got nothing — the site either blocks datacenter IPs (kassir → fg.kassir.ru)
-  // or renders only via JS. Jina Reader fetches+renders from its own IP and returns HTML,
-  // which the same parser handles. Keeps the original URL as the page identity.
+  // Fallback: got nothing — the site blocks datacenter IPs (kassir → fg.kassir.ru) or
+  // renders only via JS. Jina Reader fetches+renders from its own IP and returns HTML.
   if (!out.title && !out.image) {
     try {
       const r = await fetchText('https://r.jina.ai/' + url, { headers: { 'X-Return-Format': 'html', 'accept-language': 'ru,en' }, timeout: 22000 });
-      finalUrl = url; out.url = cleanUrl(url);
-      parseInto(out, r.html, url);
+      if (!looksBlocked(r.html, url)) { finalUrl = url; out.url = cleanUrl(url); parseInto(out, r.html, url); }
+      else out.url = cleanUrl(url);
     } catch (e) { console.warn('jina fallback failed:', e?.message || e); }
   }
   // URL-embedded date is the most reliable — always let it win (e.g. Yandex Afisha off-by-one).
