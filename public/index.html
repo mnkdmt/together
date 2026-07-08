@@ -707,7 +707,7 @@ function featured(i){
       <div class="kicker" style="color:var(${CATVAR[i.cat]})">${CATLABEL[i.cat]}</div>
       <div class="card-title">${i.title}</div>
       ${i.note?`<div class="quote" style="margin-bottom:14px">«${i.note}» — ${i.by==='she'?'от неё':'от меня'}</div>`:''}
-      <div class="row" style="margin-bottom:15px"><span class="meta">${ic('i-map')} <b>${i.price}</b> · ${i.loc}</span></div>
+      ${(i.price||i.loc)?`<div class="row" style="margin-bottom:15px"><span class="meta">${ic('i-map')} ${[i.price&&('<b>'+i.price+'</b>'),i.loc].filter(Boolean).join(' · ')}</span></div>`:'<div style="margin-bottom:15px"></div>'}
       <button class="btn-ember" data-plan="${i.id}">${ic('i-cal')} Запланировать</button>
     </div></div>`;
 }
@@ -739,7 +739,7 @@ function feedCard(i){
     <div class="feed swipe-card">
       <div class="photo" style="background:${GRAD[i.cat]}">${imgEl(i.img)}<div class="scrim"></div>${ipill(i.int)}
         <div class="fcap"><div class="kicker" style="color:var(${CATVAR[i.cat]})">${CATLABEL[i.cat]}</div>
-          <div class="ft">${i.title}</div><div class="meta" style="color:rgba(255,255,255,.75)">${ic('i-map')} ${i.price} · ${i.loc}</div></div></div>
+          <div class="ft">${i.title}</div>${(i.price||i.loc)?`<div class="meta" style="color:rgba(255,255,255,.75)">${ic('i-map')} ${[i.price,i.loc].filter(Boolean).join(' · ')}</div>`:''}</div></div>
     </div></div>`;
 }
 function memCard(m,idx){
