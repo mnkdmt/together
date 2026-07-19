@@ -1,6 +1,6 @@
 // Together — couple-scoped data proxy (Vercel). Identity = verified Telegram initData;
 // every operation is restricted to the caller's own couple. Purchase notifications fire inline.
-// Also handles couple-management ops (me / invite / leave / rename) via body.op.
+// Also handles couple-management ops (me / invite / leave) via body.op.
 import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { verifyInitData } from '../lib/telegram.mjs';
@@ -81,7 +81,7 @@ async function refreshMemberPhotos(members) {
   }
 }
 
-// Couple management: who am I with / invite a partner / leave to a fresh couple / rename.
+// Couple management: who am I with / invite a partner / leave to a fresh couple.
 async function handleOp(op, body, user, couple_id, res) {
   if (op === 'me') {
     // Resilient to dates.sql not being run yet: fall back to the basic columns on error.
@@ -163,12 +163,6 @@ async function handleOp(op, body, user, couple_id, res) {
     if (nc.error) return res.status(500).json({ error: nc.error.message });
     await svc().from('app_users').update({ couple_id: nc.data.id }).eq('telegram_id', user.id);
     return res.status(200).json({ data: { couple_id: nc.data.id } });
-  }
-  if (op === 'rename') {
-    const name = String(body.name || '').trim().slice(0, 40);
-    if (!name) return res.status(400).json({ error: 'empty name' });
-    await svc().from('couples').update({ name }).eq('id', couple_id);
-    return res.status(200).json({ data: { name } });
   }
   if (op === 'settaste') {
     const patch = {};
