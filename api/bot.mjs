@@ -62,6 +62,7 @@ bot.command('start', async (ctx) => {
     await ctx.reply('💛 Готово! Теперь вы в общей паре. Открой приложение — увидите общий список идей и покупок.');
     return;
   }
+  supa.from('events').insert({ tid: ctx.from?.id || null, name: 'bot_start', props: {} }).then(() => {}, () => {});
   try { await ctx.replyWithPhoto(WELCOME_PHOTO, { caption: WELCOME_CAPTION, parse_mode: 'HTML', reply_markup: shareKb() }); }
   catch (e) { await ctx.reply(WELCOME_CAPTION.replace(/<\/?b>/g, ''), { reply_markup: shareKb() }); }
 });
@@ -81,6 +82,7 @@ bot.on('message:text', async (ctx) => {
   const url = (ctx.message.text.match(/https?:\/\/\S+/) || [])[0];
   const author = String(ctx.from?.id) === ME_ID ? 'me' : 'she';
   const cid = await resolveCouple(ctx.from); // sender's own couple
+  supa.from('events').insert({ couple_id: cid, tid: ctx.from?.id || null, name: 'bot_msg', props: {} }).then(() => {}, () => {});
 
   if (!url) {
     const items = ctx.message.text.split(/[\n,]+/).map((t) => t.trim()).filter(Boolean).slice(0, 20);

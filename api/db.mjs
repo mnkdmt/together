@@ -92,6 +92,8 @@ async function handleOp(op, body, user, couple_id, res) {
     if (members.error) members = await svc().from('app_users').select('telegram_id,name,birthday').eq('couple_id', couple_id);
     if (members.error) members = await svc().from('app_users').select('telegram_id,name').eq('couple_id', couple_id);
     try { await refreshMemberPhotos(members.data); } catch (e) { /* best-effort */ }
+    // Every op:me = one app open — the DAU signal. Best-effort (events.sql may not be run).
+    svc().from('events').insert({ couple_id, tid: user.id, name: 'app_open', props: {} }).then(() => {}, () => {});
     return res.status(200).json({ data: {
       couple_id, name: c.data?.name || '',
       relationship_start: c.data?.relationship_start || null, wedding_date: c.data?.wedding_date || null,
@@ -176,6 +178,32 @@ async function handleOp(op, body, user, couple_id, res) {
     const { error } = await svc().from('couples').update(patch).eq('id', couple_id);
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json({ data: patch });
+  }
+  if (op === 'track') { // app-side action events
+    const name = String(body.name || '').slice(0, 40).replace(/[^\w-]/g, '');
+    if (!name) return res.status(400).json({ error: 'no name' });
+    let props = body.props && typeof body.props === 'object' ? body.props : {};
+    try { if (JSON.stringify(props).length > 500) props = {}; } catch { props = {}; }
+    const { error } = await svc().from('events').insert({ couple_id, tid: user.id, name, props });
+    return res.status(200).json({ data: { ok: !error }, error: error ? error.message : null });
+  }
+  if (op === 'metrics') { // owner dashboard: DAU/WAU/MAU + funnel
+    if (String(user.id) !== ADMIN_ID) return res.status(403).json({ error: 'forbidden' });
+    const ev = await svc().from('events').select('tid,name,created_at').gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
+    if (ev.error) return res.status(500).json({ error: 'events: ' + ev.error.message });
+    const rows = ev.data || [], day = 86400000, now = Date.now();
+    const uniq = (f) => new Set(rows.filter(f).map((r) => r.tid)).size;
+    const dau = uniq((r) => new Date(r.created_at).getTime() > now - day);
+    const wau = uniq((r) => new Date(r.created_at).getTime() > now - 7 * day);
+    const mau = uniq(() => true);
+    const ideas = await svc().from('ideas').select('couple_id,status');
+    const cc = await svc().from('couples').select('*', { count: 'exact', head: true });
+    const withIdeas = new Set((ideas.data || []).map((r) => r.couple_id)).size;
+    const withPlan = new Set((ideas.data || []).filter((r) => r.status === 'planned' || r.status === 'done').map((r) => r.couple_id)).size;
+    const withDone = new Set((ideas.data || []).filter((r) => r.status === 'done').map((r) => r.couple_id)).size;
+    const top = {}; rows.forEach((r) => { top[r.name] = (top[r.name] || 0) + 1; });
+    return res.status(200).json({ data: { dau, wau, mau, events_30d: rows.length, top,
+      funnel: { couples: cc.count || 0, with_ideas: withIdeas, with_plan: withPlan, with_done: withDone } } });
   }
   return res.status(400).json({ error: 'bad op' });
 }

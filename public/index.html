@@ -846,6 +846,7 @@ function closeTaste(){ document.getElementById('taste').classList.remove('open')
 function saveTaste(){
   tasteSet=true;
   if(window.__op)window.__op('settaste',{taste:{categories:TASTE.categories,genres:TASTE.genres},taste_set:true}).then(()=>{},()=>{});
+  if(window.__track)window.__track('taste_saved');
   closeTaste(); toast('Вкусы сохранены 💛'); renderAfisha();
 }
 function loadAfisha(){
@@ -864,6 +865,7 @@ function toggleAfLike(ext){
     const tmp={id:'t'+Date.now(),title:e.title,cat:e.category,img:e.og_image||'',url:e.url||'',int:'interesting',note:'',price:e.price||'',loc:e.location||'',evdate:e.event_date||'',evtime:e.event_time||'',by:'me',status:'idea',date:'',time:'',venue:'out',source:'afisha',liked:true,ext:e.ext_id,lat:e.lat,lon:e.lon,atid:(window.__tgUser&&window.__tgUser.id)||null};
     IDEAS.unshift(tmp);
     dbInsertIdea({title:e.title,url:e.url||null,category:e.category,author:'me',intensity:'interesting',status:'idea',venue:'out',og_image:e.og_image||null,location:e.location||null,event_date:e.event_date||null,event_time:e.event_time||null,source:'afisha',liked:true,ext_id:e.ext_id,lat:e.lat,lon:e.lon},r=>{if(r&&r.data)tmp.id=r.data.id;});
+    if(window.__track)window.__track('afisha_like');
     toast('В понравившееся 💛');
   }
   renderAfisha();
@@ -1077,6 +1079,7 @@ function createDateIdea(){
   IDEAS.unshift(tmp);
   dbInsertIdea({title:ftitle,url:link||null,category:cat,note:note||null,author:'me',intensity:int,status:'idea',venue,og_image:img||null,location:loc||null,event_date:evdate||null,event_time:evtime||null},
     r=>{ if(r&&r.error){console.warn('idea insert failed:',r.error.message);} else if(r&&r.data){tmp.id=r.data.id;render();} });
+  if(window.__track)window.__track('idea_create',{via:asLink?'link':'text'});
   resetCreateForm();
   render();
   document.getElementById('create').classList.remove('open');document.body.style.overflow='';
@@ -1235,7 +1238,18 @@ function applyCouple(c){
   const ne=document.getElementById('next-event');
   if(ne){const up=evs.filter(e=>e.d>=0).sort((a,b)=>a.d-b.d)[0];
     if(up){ne.style.display='';ne.textContent=up.t.trim()+(up.d===0?' — сегодня! 🎉':up.d===1?' — завтра':' · через '+plDays(up.d));}else ne.style.display='none';}
-  if(c.is_admin&&window.__op){window.__op('stats').then(r=>{const a=document.getElementById('admin-stats');if(a&&r&&r.data){a.style.display='';a.textContent='👥 '+r.data.users+' пользователей · 💞 '+r.data.couples+' пар';}},()=>{});}
+  if(c.is_admin&&window.__op){
+    Promise.all([window.__op('stats'),window.__op('metrics')]).then(([s,m])=>{
+      const a=document.getElementById('admin-stats'); if(!a)return;
+      const sd=(s&&s.data)||{}, md=m&&m.data;
+      let html='👥 '+(sd.users||0)+' юзеров · 💞 '+(sd.couples_full!=null?sd.couples_full+' полных / '+sd.couples+' пар':(sd.couples||0)+' пар');
+      if(md){
+        html+='<br>📈 DAU '+md.dau+' · WAU '+md.wau+' · MAU '+md.mau;
+        const f=md.funnel; html+='<br>🔻 идеи '+f.with_ideas+' → план '+f.with_plan+' → было '+f.with_done+' (из '+f.couples+' пар)';
+      } else html+='<br>📈 метрики появятся после events.sql';
+      a.style.display=''; a.innerHTML=html;
+    },()=>{});
+  }
 }
 function saveDate(kind,el){
   if(!window.__op){toast('Доступно только в Telegram');return;}
@@ -1283,6 +1297,7 @@ function planIdea(id){
   i.date = i.date || i.evdate || isoToday();
   i.time = i.time || i.evtime || '';
   if(window.__sb)window.__sb.from('ideas').update({status:'planned',planned_date:i.date,planned_time:i.time}).eq('id',i.id).then(()=>{},()=>{});
+  if(window.__track)window.__track('plan');
   render(); openDetail(i.id);
 }
 function replanIdea(id,date){
@@ -1303,6 +1318,7 @@ function onMemFile(input){
   fileToData(f,data=>{ if(!data){toast('Не вышло прочитать фото');return;}
     m.img=data;
     if(window.__upload&&m.id)window.__upload(data,'photo').then(r=>{ if(r&&r.data&&r.data.path&&window.__sb)window.__sb.from('ideas').update({done_photo:r.data.path}).eq('id',m.id).then(()=>{},()=>{}); },()=>{});
+    if(window.__track)window.__track('mem_photo');
     render(); openMemory(curMemIdx); toast('Фото добавлено 💛');
   });
 }
@@ -1312,6 +1328,7 @@ function onTicketFile(input){
   fileToData(f,data=>{ if(!data){toast('Не вышло прочитать файл');return;}
     i.ticket='local'; i.ticketUrl=data;
     if(window.__upload)window.__upload(data,'ticket').then(r=>{ if(r&&r.data&&r.data.path){ i.ticket=r.data.path; if(window.__sb)window.__sb.from('ideas').update({ticket:r.data.path}).eq('id',i.id).then(()=>{},()=>{}); } },()=>{});
+    if(window.__track)window.__track('ticket_attach');
     openDetail(i.id); toast('Билет прикреплён 🎟');
   });
 }
@@ -1352,6 +1369,7 @@ function saveDone(){
   const persist=path=>{ if(window.__sb)window.__sb.from('ideas').update({status:'done',mood,done_photo:path||null}).eq('id',i.id).then(()=>{},()=>{}); };
   if(photo&&window.__upload){ window.__upload(photo).then(r=>persist(r&&r.data?r.data.path:null),()=>persist(null)); }
   else persist(null);
+  if(window.__track)window.__track('done',{photo:!!photo});
   document.getElementById('done').classList.remove('open');
   closeDetail(); document.body.style.overflow=''; resetDonePhoto();
   render(); showTab('mem');
@@ -1503,6 +1521,7 @@ try{
     window.__extract=(url)=>fetch('/api/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,url})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
     window.__afisha=(opts)=>fetch('/api/afisha',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,...(opts||{})})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
     window.__upload=(image,kind)=>fetch('/api/upload',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({initData,image,kind:kind||'photo'})}).then(r=>r.json()).then(j=>({data:j.data,error:j.error?{message:j.error}:null})).catch(e=>({data:null,error:{message:String(e&&e.message||e)}}));
+    window.__track=(name,props)=>{call({op:'track',name,props:props||{}}).then(()=>{},()=>{});};
     const {data,error}=await window.__sb.from('ideas').select('*').order('created_at',{ascending:false});
     if(error){console.warn('db error:',error.message);}
     else if(data&&data.length){
