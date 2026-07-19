@@ -32,7 +32,12 @@ const shareKb = () => new InlineKeyboard().url('💌 Поделиться с д�
 // everyone — every write is scoped to the sender's own couple, so there's no cross-couple leakage.
 async function resolveCouple(from) {
   const ex = await supa.from('app_users').select('couple_id').eq('telegram_id', from.id).maybeSingle();
-  if (ex.data && ex.data.couple_id) return ex.data.couple_id;
+  if (ex.data && ex.data.couple_id) {
+    // Keep the sender's name synced with their real Telegram name (fixes seeded/stale names).
+    const nm = [from.first_name, from.last_name].filter(Boolean).join(' ');
+    if (nm) supa.from('app_users').update({ name: nm }).eq('telegram_id', from.id).then(() => {}, () => {});
+    return ex.data.couple_id;
+  }
   const name = [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Моя пара';
   const c = await supa.from('couples').insert({ name }).select('id').single();
   if (!c.error) await supa.from('app_users').upsert({ telegram_id: from.id, couple_id: c.data.id, name });

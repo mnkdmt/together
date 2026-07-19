@@ -55,6 +55,13 @@ async function notifyPartner(couple_id, actor) {
 // null = never tried; '' = tried, none available (privacy or no photo) — don't re-hammer.
 async function refreshMemberPhotos(members) {
   for (const m of members || []) {
+    // Sync the member's display name with their real Telegram name (getChat works for
+    // anyone who has talked to the bot; fixes names seeded manually, e.g. 'Аня').
+    try {
+      const ch = await tg('getChat', { chat_id: m.telegram_id });
+      const nm = ch && ch.ok ? [ch.result.first_name, ch.result.last_name].filter(Boolean).join(' ') : '';
+      if (nm && nm !== m.name) { await svc().from('app_users').update({ name: nm }).eq('telegram_id', m.telegram_id); m.name = nm; }
+    } catch (e) { /* best-effort */ }
     if (m.photo_url != null) continue;
     try {
       const ph = await tg('getUserProfilePhotos', { user_id: m.telegram_id, limit: 1 });
