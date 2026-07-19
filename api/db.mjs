@@ -50,6 +50,30 @@ async function notifyPartner(couple_id, actor) {
   await svc().from('shopping').update({ notified: true }).in('id', ids);
 }
 
+// Members who never opened the Mini App (the bot-only partner) have no photo — initData
+// only tells us the visitor's own. Pull theirs via Bot API into a public 'avatars' bucket.
+// null = never tried; '' = tried, none available (privacy or no photo) — don't re-hammer.
+async function refreshMemberPhotos(members) {
+  for (const m of members || []) {
+    if (m.photo_url != null) continue;
+    try {
+      const ph = await tg('getUserProfilePhotos', { user_id: m.telegram_id, limit: 1 });
+      if (!ph || !ph.ok) continue;
+      if (!ph.result.total_count) { await svc().from('app_users').update({ photo_url: '' }).eq('telegram_id', m.telegram_id); m.photo_url = ''; continue; }
+      const sizes = ph.result.photos[0], best = sizes[sizes.length - 1];
+      const f = await tg('getFile', { file_id: best.file_id });
+      if (!f || !f.ok) continue;
+      const bytes = Buffer.from(await (await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${f.result.file_path}`)).arrayBuffer());
+      await svc().storage.createBucket('avatars', { public: true }).catch(() => {});
+      const path = `${m.telegram_id}.jpg`;
+      const up = await svc().storage.from('avatars').upload(path, bytes, { contentType: 'image/jpeg', upsert: true });
+      if (up.error) continue;
+      const { data: pub } = svc().storage.from('avatars').getPublicUrl(path);
+      if (pub && pub.publicUrl) { await svc().from('app_users').update({ photo_url: pub.publicUrl }).eq('telegram_id', m.telegram_id); m.photo_url = pub.publicUrl; }
+    } catch (e) { /* best-effort */ }
+  }
+}
+
 // Couple management: who am I with / invite a partner / leave to a fresh couple / rename.
 async function handleOp(op, body, user, couple_id, res) {
   if (op === 'me') {
@@ -60,6 +84,7 @@ async function handleOp(op, body, user, couple_id, res) {
     let members = await svc().from('app_users').select('telegram_id,name,birthday,photo_url').eq('couple_id', couple_id);
     if (members.error) members = await svc().from('app_users').select('telegram_id,name,birthday').eq('couple_id', couple_id);
     if (members.error) members = await svc().from('app_users').select('telegram_id,name').eq('couple_id', couple_id);
+    try { await refreshMemberPhotos(members.data); } catch (e) { /* best-effort */ }
     return res.status(200).json({ data: {
       couple_id, name: c.data?.name || '',
       relationship_start: c.data?.relationship_start || null, wedding_date: c.data?.wedding_date || null,
