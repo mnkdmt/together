@@ -52,6 +52,10 @@ bot.command('start', async (ctx) => {
     if (!inv.data) { await ctx.reply('Приглашение не найдено 😕'); return; }
     if (inv.data.used_by) { await ctx.reply('Это приглашение уже использовано.'); return; }
     if (inv.data.expires_at && new Date(inv.data.expires_at) < new Date()) { await ctx.reply('Приглашение устарело.'); return; }
+    const cur = await supa.from('app_users').select('telegram_id').eq('couple_id', inv.data.couple_id);
+    const ids = (cur.data || []).map((m) => String(m.telegram_id));
+    if (ids.includes(String(ctx.from.id))) { await ctx.reply('Ты уже в этой паре 💛'); return; }
+    if (ids.length >= 2) { await ctx.reply('В этой паре уже двое 💛 Приглашение больше не действует.'); return; }
     const name = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ') || ctx.from.username || '';
     await supa.from('app_users').upsert({ telegram_id: ctx.from.id, couple_id: inv.data.couple_id, name });
     await supa.from('invites').update({ used_by: ctx.from.id, used_at: new Date().toISOString() }).eq('token', token);

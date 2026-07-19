@@ -135,6 +135,8 @@ async function handleOp(op, body, user, couple_id, res) {
     return res.status(200).json({ data: { telegram_id: target, birthday: body.birthday || null } });
   }
   if (op === 'invite') {
+    const cnt = await svc().from('app_users').select('*', { count: 'exact', head: true }).eq('couple_id', couple_id);
+    if ((cnt.count || 0) >= 2) return res.status(400).json({ error: 'couple full' });
     const token = crypto.randomBytes(8).toString('hex');
     const ins = await svc().from('invites').insert({ token, couple_id, created_by: user.id }).select('token').single();
     if (ins.error) return res.status(500).json({ error: ins.error.message });

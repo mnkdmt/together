@@ -161,6 +161,8 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
 .stat .c{font-size:11.5px;color:var(--text-tertiary);margin-top:5px}
 .settings .srow{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background .15s}
 .settings .srow:active{background:rgba(255,255,255,.06)}
+.settings .srow.rowdis{opacity:.45}
+.settings .srow.rowdis:active{background:transparent}
 .settings .srow+.srow{border-top:1px solid rgba(255,255,255,.07)}
 .settings .si{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
 .settings .sl{flex:1;font-size:15px}
@@ -1210,6 +1212,10 @@ function applyCouple(c){
   {const hint=document.getElementById('list-empty-hint');if(hint)hint.textContent='Когда '+(PARTNER_NAME||'партнёр')+' пришлёт идею боту, она появится тут — с пометкой, насколько хочется.';}
   const pn=document.getElementById('pair-name'); if(pn)pn.textContent=c.name||'Моя пара';
   const cn=document.getElementById('couple-names'); if(cn){const ns=members.map(m=>m.name).filter(Boolean);cn.textContent=ns.length?ns.join(' и '):(c.name||'Моя пара');}
+  // Invite is only for an incomplete couple — grey it out once you're two.
+  {const inv=document.querySelector('[data-pair="invite"]');
+   if(inv){const full=members.length>=2;inv.classList.toggle('rowdis',full);inv.dataset.full=full?'1':'';
+     const sv=inv.querySelector('.sv');if(sv)sv.innerHTML=full?'вы уже вдвоём':'';}}
   // Avatars follow the same member order as the names line — no hardcoded ids.
   {const avs=[document.getElementById('av-me'),document.getElementById('av-her')];
    members.slice(0,2).forEach((m,ix)=>{const el=avs[ix];if(!el)return;
@@ -1243,6 +1249,8 @@ function saveDate(kind,el){
 async function pairAction(kind){
   if(!window.__op){toast('Доступно только в Telegram');return;}
   if(kind==='invite'){
+    const inv=document.querySelector('[data-pair="invite"]');
+    if(inv&&inv.dataset.full){toast('Вы уже вдвоём 💛 Сначала «Выйти из пары»');return;}
     toast('Создаю приглашение…');
     const r=await window.__op('invite');
     if(r&&r.data&&r.data.link)shareInvite(r.data.link); else toast('Не удалось создать ссылку');
