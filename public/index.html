@@ -859,9 +859,9 @@ function toggleAfLike(ext){
     toast('Убрал из понравившегося');
   } else {
     const e=AFISHA.find(x=>x.ext_id===ext)||DEMO_AFISHA.find(x=>x.ext_id===ext); if(!e)return;
-    const tmp={id:'t'+Date.now(),title:e.title,cat:e.category,img:e.og_image||'',url:e.url||'',int:'interesting',note:'',price:e.price||'',loc:e.location||'',evdate:e.event_date||'',evtime:e.event_time||'',by:'me',status:'idea',date:'',time:'',venue:'out',source:'afisha',liked:true,ext:e.ext_id,lat:e.lat,lon:e.lon};
+    const tmp={id:'t'+Date.now(),title:e.title,cat:e.category,img:e.og_image||'',url:e.url||'',int:'interesting',note:'',price:e.price||'',loc:e.location||'',evdate:e.event_date||'',evtime:e.event_time||'',by:'me',status:'idea',date:'',time:'',venue:'out',source:'afisha',liked:true,ext:e.ext_id,lat:e.lat,lon:e.lon,atid:(window.__tgUser&&window.__tgUser.id)||null};
     IDEAS.unshift(tmp);
-    if(window.__sb)window.__sb.from('ideas').insert({title:e.title,url:e.url||null,category:e.category,author:'me',intensity:'interesting',status:'idea',venue:'out',og_image:e.og_image||null,location:e.location||null,event_date:e.event_date||null,event_time:e.event_time||null,source:'afisha',liked:true,ext_id:e.ext_id,lat:e.lat,lon:e.lon}).select('id').single().then(r=>{if(r&&r.data)tmp.id=r.data.id;},()=>{});
+    dbInsertIdea({title:e.title,url:e.url||null,category:e.category,author:'me',intensity:'interesting',status:'idea',venue:'out',og_image:e.og_image||null,location:e.location||null,event_date:e.event_date||null,event_time:e.event_time||null,source:'afisha',liked:true,ext_id:e.ext_id,lat:e.lat,lon:e.lon},r=>{if(r&&r.data)tmp.id=r.data.id;});
     toast('В понравившееся 💛');
   }
   renderAfisha();
@@ -915,7 +915,7 @@ function emptyState(){
   return `<div class="empty">
     <div class="glyph glass">${ic('i-flame')}</div>
     <h2>Здесь пока пусто</h2>
-    <p>Когда Аня пришлёт идею боту, она появится тут — с пометкой, насколько ей хочется.</p>
+    <p id="list-empty-hint">Когда Аня пришлёт идею боту, она появится тут — с пометкой, насколько ей хочется.</p>
     <button class="btn-ember" data-onb-open>${ic('i-link')} Открыть бота</button>
   </div>`;
 }
@@ -965,7 +965,7 @@ function renderShop(){
     html+=`<div class="shop-th"><div class="shop-th-h" style="color:var(${T.c})">${ic(T.ic)} ${T.l} · ${items.length}</div>${items.map(shopRow).join('')}</div>`;
   }
   if(done.length)html+=`<div class="shop-th"><div class="shop-th-h">${ic('i-check')} Куплено · ${done.length}</div>${done.map(shopRow).join('')}</div>`;
-  if(!SHOPPING.length)html=`<div class="empty"><div class="glyph glass">${ic('i-cart')}</div><h2>Список пуст</h2><p>Добавь сверху, что нужно купить — или Аня пришлёт списком прямо в бота.</p></div>`;
+  if(!SHOPPING.length)html=`<div class="empty"><div class="glyph glass">${ic('i-cart')}</div><h2>Список пуст</h2><p>Добавь сверху, что нужно купить — или ${PARTNER_NAME||'партнёр'} пришлёт списком прямо в бота.</p></div>`;
   document.getElementById('shop-body').innerHTML=html;
   const n=active.length;
   document.getElementById('shop-count').textContent=n;
@@ -988,6 +988,20 @@ function toggleShop(id){
   s.done=!s.done;
   if(window.__sb)window.__sb.from('shopping').update({done:s.done}).eq('id',id).then(()=>{},()=>{});
   renderShop();
+}
+// Insert an idea row, stamping the sender's telegram_id; retries without author_tid
+// if the migration hasn't been run yet (unknown column).
+function dbInsertIdea(vals,cb){
+  if(!window.__sb){if(cb)cb(null);return;}
+  if(window.__tgUser&&window.__tgUser.id)vals={...vals,author_tid:window.__tgUser.id};
+  window.__sb.from('ideas').insert(vals).select('id').single().then(r=>{
+    if(r&&r.error&&/author_tid/.test(r.error.message||'')){
+      const {author_tid,...rest}=vals;
+      window.__sb.from('ideas').insert(rest).select('id').single().then(r2=>{if(cb)cb(r2);},()=>{if(cb)cb(null);});
+      return;
+    }
+    if(cb)cb(r);
+  },()=>{if(cb)cb(null);});
 }
 let cdExtracted=null; // last link-extracted metadata for the create sheet
 function isUrl(s){s=(s||'').trim();return /^https?:\/\//i.test(s)||/^[\w-]+(\.[\w-]+)+\/?/.test(s);}
@@ -1057,12 +1071,10 @@ function createDateIdea(){
   const note=(document.getElementById('cd-note').value||'').trim();
   const ftitle=title||'Новая идея';
   const img=(ex&&ex.image)||'', loc=(ex&&ex.location)||'', evdate=(ex&&ex.date)||'', evtime=(ex&&ex.time)||'';
-  const tmp={id:'t'+Date.now(),title:ftitle,cat,img,url:link,int,note,price:'',loc,evdate,evtime,by:'me',status:'idea',date:'',time:'',venue};
+  const tmp={id:'t'+Date.now(),title:ftitle,cat,img,url:link,int,note,price:'',loc,evdate,evtime,by:'me',status:'idea',date:'',time:'',venue,atid:(window.__tgUser&&window.__tgUser.id)||null};
   IDEAS.unshift(tmp);
-  if(window.__sb){
-    window.__sb.from('ideas').insert({title:ftitle,url:link||null,category:cat,note:note||null,author:'me',intensity:int,status:'idea',venue,og_image:img||null,location:loc||null,event_date:evdate||null,event_time:evtime||null}).select('id').single()
-      .then(r=>{ if(r&&r.error){console.warn('idea insert failed:',r.error.message);} else if(r&&r.data){tmp.id=r.data.id;render();} },e=>{console.warn('idea insert error:',e);});
-  }
+  dbInsertIdea({title:ftitle,url:link||null,category:cat,note:note||null,author:'me',intensity:int,status:'idea',venue,og_image:img||null,location:loc||null,event_date:evdate||null,event_time:evtime||null},
+    r=>{ if(r&&r.error){console.warn('idea insert failed:',r.error.message);} else if(r&&r.data){tmp.id=r.data.id;render();} });
   resetCreateForm();
   render();
   document.getElementById('create').classList.remove('open');document.body.style.overflow='';
@@ -1088,14 +1100,14 @@ function openDetail(id){
   curIdeaId=i.id;
   const planned=i.status==='planned';
   let badge = planned
-    ? `<span class="status-pill">${ic('i-cal')} Запланировано</span><span class="meta">${i.by==='she'?'добавила Аня':'добавил Дима'}</span>`
-    : `<span class="badge-inline glass" style="color:#FFE0CF">${ic(INT[i.int].ic)} ${INT[i.int].l}</span><span class="meta">${i.by==='she'?'добавила Аня':'добавил Дима'}</span>`;
+    ? `<span class="status-pill">${ic('i-cal')} Запланировано</span><span class="meta">${authorLabel(i)}</span>`
+    : `<span class="badge-inline glass" style="color:#FFE0CF">${ic(INT[i.int].ic)} ${INT[i.int].l}</span><span class="meta">${authorLabel(i)}</span>`;
   let banner = planned
     ? `<label class="planned-banner" style="position:relative;cursor:pointer">${ic('i-cal')}<div style="flex:1"><div style="font-weight:600;font-size:14px;color:var(--accent-ember)">${fmtFull(i.date)}${i.time?', '+i.time:''}</div><div class="meta">нажми, чтобы изменить дату</div></div>${ic('i-chev')}<input type="date" value="${i.date}" data-replan="${i.id}" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer"></label>` : '';
   let actions = planned
     ? `<button class="btn-ember" style="margin-top:10px" data-done="${i.id}">${ic('i-check')} Мы сходили</button>`
     : `<button class="btn-ember" style="margin-top:8px" data-plan="${i.id}">${ic('i-cal')} Запланировать</button>
-       <button class="btn-glass glass" style="margin-top:10px" data-share="${i.url||''}">${ic('i-share')} Поделиться с Аней</button>`;
+       <button class="btn-glass glass" style="margin-top:10px" data-share="${i.url||''}">${ic('i-share')} Поделиться${PARTNER_NAME?' с '+instrName(PARTNER_NAME):''}</button>`;
   const d=document.getElementById('detail');
   d.innerHTML=`
     <div class="hero" style="background:${GRAD[i.cat]}">${bnEl(i.img,i.cat)}<div class="scrim"></div>
@@ -1170,6 +1182,20 @@ function daysSince(iso){if(!iso)return null;const d=new Date(iso+'T00:00:00');co
 function nextOccur(iso){if(!iso)return null;const d=new Date(iso+'T00:00:00');const t=new Date();t.setHours(0,0,0,0);let n=new Date(t.getFullYear(),d.getMonth(),d.getDate());if(n<t)n=new Date(t.getFullYear()+1,d.getMonth(),d.getDate());return{days:Math.round((n-t)/86400000),years:n.getFullYear()-d.getFullYear()};}
 function setDVal(id,v){const el=document.getElementById(id);if(el)el.value=v||'';}
 function reloadCouple(){if(window.__op)window.__op('me').then(r=>{if(r&&r.data)applyCouple(r.data);},()=>{});}
+let MY_NAME='Дима', PARTNER_NAME='Аня';
+const firstName=s=>String(s||'').trim().split(/\s+/)[0]||'';
+function instrName(n){ // творительный: «с Аней/Верой/Машей»; латиница и прочее — как есть
+  if(/я$/i.test(n))return n.slice(0,-1)+'ей';
+  if(/[жшчщц]а$/i.test(n))return n.slice(0,-1)+'ей';
+  if(/а$/i.test(n))return n.slice(0,-1)+'ой';
+  return n;
+}
+function authorLabel(i){
+  const ms=(window.__couple&&window.__couple.members)||[];
+  const m=i.atid&&ms.find(x=>String(x.telegram_id)===String(i.atid));
+  if(m)return 'добавил(а) '+firstName(m.name);
+  return i.by==='she'?('добавила '+PARTNER_NAME):('добавил '+MY_NAME);
+}
 function applyCouple(c){
   window.__couple=c; const members=c.members||[];
   {const t=(c.taste&&typeof c.taste==='object')?c.taste:{};
@@ -1179,8 +1205,19 @@ function applyCouple(c){
   if(document.getElementById('s-search')&&document.getElementById('s-search').classList.contains('active'))renderAfisha();
   const me=members.find(m=>String(m.telegram_id)===String(c.me));
   const partner=members.find(m=>String(m.telegram_id)!==String(c.me));
+  if(me&&me.name)MY_NAME=firstName(me.name);
+  PARTNER_NAME=partner?firstName(partner.name||'')||'партнёр':'';
+  {const hint=document.getElementById('list-empty-hint');if(hint)hint.textContent='Когда '+(PARTNER_NAME||'партнёр')+' пришлёт идею боту, она появится тут — с пометкой, насколько хочется.';}
   const pn=document.getElementById('pair-name'); if(pn)pn.textContent=c.name||'Моя пара';
   const cn=document.getElementById('couple-names'); if(cn){const ns=members.map(m=>m.name).filter(Boolean);cn.textContent=ns.length?ns.join(' и '):(c.name||'Моя пара');}
+  // Avatars follow the same member order as the names line — no hardcoded ids.
+  {const avs=[document.getElementById('av-me'),document.getElementById('av-her')];
+   members.slice(0,2).forEach((m,ix)=>{const el=avs[ix];if(!el)return;
+     let photo=m.photo_url||'';
+     if(String(m.telegram_id)===String(c.me)&&window.__tgUser&&window.__tgUser.photo_url)photo=window.__tgUser.photo_url;
+     if(photo){el.style.background='url("'+photo+'") center/cover';el.textContent='';}
+     else el.textContent=(firstName(m.name)[0]||'?').toUpperCase();});
+   if(members.length<2&&avs[1])avs[1].textContent='+';}
   const td=document.getElementById('together-days'); if(td){const ds=daysSince(c.relationship_start);td.textContent=ds!=null?('вместе '+plDays(ds)):'добавь дату начала ↓';}
   setDVal('d-rel',c.relationship_start); setDVal('d-wed',c.wedding_date); if(me)setDVal('d-bday',me.birthday);
   const pr=document.getElementById('d-bday-partner-row');
@@ -1418,13 +1455,7 @@ function initTelegram(){
   try{tg.disableVerticalSwipes&&tg.disableVerticalSwipes();}catch(e){}
   window.__tg=tg; window.__tgUser=(tg.initDataUnsafe&&tg.initDataUnsafe.user)||null;
   document.documentElement.classList.add('in-telegram');
-  const u=window.__tgUser;
-  if(u){
-    // Names stay "Дима и Аня" (their own names). Put the viewer's photo on THEIR side by id.
-    const isMe = String(u.id) === '681332519'; // Dmitry; anyone else is the partner (Аня)
-    const avEl = document.getElementById(isMe ? 'av-me' : 'av-her');
-    if(avEl && u.photo_url){ avEl.style.background='url("'+u.photo_url+'") center/cover'; avEl.textContent=''; }
-  }
+  // Avatars are laid out by applyCouple (member order from op:me) — no hardcoded ids here.
   return true;
 }
 const inTelegram=initTelegram();
@@ -1467,7 +1498,7 @@ try{
     const {data,error}=await window.__sb.from('ideas').select('*').order('created_at',{ascending:false});
     if(error){console.warn('db error:',error.message);}
     else if(data&&data.length){
-      const map=r=>({id:r.id,title:r.title,cat:r.category||'concert',img:r.og_image,url:r.url||'',int:r.intensity,note:r.note||'',price:r.price||'',loc:r.location||'',evdate:r.event_date||'',evtime:r.event_time||'',by:r.author,status:r.status,date:r.planned_date,time:r.planned_time,venue:r.venue||'out',source:r.source||'manual',liked:r.liked||false,ext:r.ext_id||null,lat:r.lat,lon:r.lon,ticket:r.ticket||null,ticketUrl:r.ticket_url||null});
+      const map=r=>({id:r.id,title:r.title,cat:r.category||'concert',img:r.og_image,url:r.url||'',int:r.intensity,note:r.note||'',price:r.price||'',loc:r.location||'',evdate:r.event_date||'',evtime:r.event_time||'',by:r.author,status:r.status,date:r.planned_date,time:r.planned_time,venue:r.venue||'out',source:r.source||'manual',liked:r.liked||false,ext:r.ext_id||null,lat:r.lat,lon:r.lon,ticket:r.ticket||null,ticketUrl:r.ticket_url||null,atid:r.author_tid||null});
       const ideas=data.filter(r=>r.status!=='done').map(map);
       const mems=data.filter(r=>r.status==='done').map(r=>({id:r.id,t:r.title,d:r.planned_date||'',cat:r.category||'film',mood:r.mood||'Огонь',note:r.note||'',photos:r.done_photo_url?1:0,img:r.done_photo_url||''}));
       window.applyRemote(ideas,mems);

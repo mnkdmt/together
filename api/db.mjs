@@ -23,7 +23,13 @@ const tg = (method, payload) =>
 
 async function resolveCouple(u) {
   const existing = await svc().from('app_users').select('couple_id').eq('telegram_id', u.id).maybeSingle();
-  if (existing.data && existing.data.couple_id) return existing.data.couple_id;
+  if (existing.data && existing.data.couple_id) {
+    // Keep the visitor's name/photo fresh so both partners get real avatars over time.
+    const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || null;
+    const patch = {}; if (name) patch.name = name; if (u.photo_url) patch.photo_url = u.photo_url;
+    if (Object.keys(patch).length) svc().from('app_users').update(patch).eq('telegram_id', u.id).then(() => {}, () => {});
+    return existing.data.couple_id;
+  }
   const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Моя пара';
   const c = await svc().from('couples').insert({ name }).select('id').single();
   if (c.error) throw new Error('couple create: ' + c.error.message);
@@ -51,7 +57,8 @@ async function handleOp(op, body, user, couple_id, res) {
     let c = await svc().from('couples').select('name,relationship_start,wedding_date,taste,taste_set').eq('id', couple_id).maybeSingle();
     if (c.error) c = await svc().from('couples').select('name,relationship_start,wedding_date').eq('id', couple_id).maybeSingle();
     if (c.error) c = await svc().from('couples').select('name').eq('id', couple_id).maybeSingle();
-    let members = await svc().from('app_users').select('telegram_id,name,birthday').eq('couple_id', couple_id);
+    let members = await svc().from('app_users').select('telegram_id,name,birthday,photo_url').eq('couple_id', couple_id);
+    if (members.error) members = await svc().from('app_users').select('telegram_id,name,birthday').eq('couple_id', couple_id);
     if (members.error) members = await svc().from('app_users').select('telegram_id,name').eq('couple_id', couple_id);
     return res.status(200).json({ data: {
       couple_id, name: c.data?.name || '',

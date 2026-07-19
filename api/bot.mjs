@@ -87,11 +87,18 @@ bot.on('message:text', async (ctx) => {
   await ctx.replyWithChatAction('typing');
 
   const ev = await extractEvent(url);
-  const { data, error } = await supa.from('ideas').insert({
+  let { data, error } = await supa.from('ideas').insert({
     couple_id: cid, title: ev.title, url: ev.url, og_image: ev.image,
     location: ev.location, event_date: ev.date, event_time: ev.time,
-    author, status: 'idea', intensity: 'interesting',
+    author, author_tid: ctx.from?.id || null, status: 'idea', intensity: 'interesting',
   }).select('id').single();
+  if (error && /author_tid/.test(error.message || '')) { // migration not run yet — degrade gracefully
+    ({ data, error } = await supa.from('ideas').insert({
+      couple_id: cid, title: ev.title, url: ev.url, og_image: ev.image,
+      location: ev.location, event_date: ev.date, event_time: ev.time,
+      author, status: 'idea', intensity: 'interesting',
+    }).select('id').single());
+  }
   if (error) { console.error('insert failed:', error); await ctx.reply('Ой, не смог сохранить 😕 попробуй ещё раз.'); return; }
 
   let info = '';
