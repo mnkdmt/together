@@ -358,7 +358,7 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
         <button class="hpill cart" data-go="shop"><svg class="ic" style="font-size:14px"><use href="#i-cart"/></svg><span id="shop-count-h">0</span></button>
       </div>
     </div>
-    <h1 class="display">Чем займёмся<br>сегодня?</h1>
+    <h1 class="display">Чем займёмся?</h1>
     <div class="sub-links">
       <button id="open-list"><svg class="ic"><use href="#i-stack"/></svg> <span id="idea-count">4</span> идеи от неё</button>
       <button data-go="plan"><svg class="ic"><use href="#i-cal"/></svg> <span id="plan-count">2</span> в плане</button>
@@ -610,7 +610,7 @@ svg.ic{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;strok
 
   <!-- TAB BAR -->
   <nav class="tabbar">
-    <button class="tab on" data-tab="home"><svg class="ic"><use href="#i-home"/></svg><span class="tl">Сегодня</span></button>
+    <button class="tab on" data-tab="home"><svg class="ic"><use href="#i-home"/></svg><span class="tl">Главная</span></button>
     <button class="tab" data-tab="search"><svg class="ic"><use href="#i-stack"/></svg><span class="tl">Афиша</span></button>
     <button class="tab create" data-open-create><svg class="ic"><use href="#i-plus"/></svg></button>
     <button class="tab" data-tab="mem"><svg class="ic"><use href="#i-heart"/></svg><span class="tl">Было</span></button>
@@ -710,7 +710,10 @@ function featured(i){
       <div class="card-title">${i.title}</div>
       ${i.note?`<div class="quote" style="margin-bottom:14px">«${i.note}» — ${i.by==='she'?'от неё':'от меня'}</div>`:''}
       ${(i.price||i.loc)?`<div class="row" style="margin-bottom:15px"><span class="meta">${ic('i-map')} ${[i.price&&('<b>'+i.price+'</b>'),i.loc].filter(Boolean).join(' · ')}</span></div>`:'<div style="margin-bottom:15px"></div>'}
-      <button class="btn-ember" data-plan="${i.id}">${ic('i-cal')} Запланировать</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ember" style="flex:1" data-plan="${i.id}">${ic('i-cal')} Запланировать</button>
+        <button class="btn-glass glass" style="width:auto;padding:0 16px;white-space:nowrap" data-skip="${i.id}">${ic('i-moon')} Не сейчас</button>
+      </div>
     </div></div>`;
 }
 function compact(i){
@@ -1107,6 +1110,7 @@ function openDetail(id){
   let actions = planned
     ? `<button class="btn-ember" style="margin-top:10px" data-done="${i.id}">${ic('i-check')} Мы сходили</button>`
     : `<button class="btn-ember" style="margin-top:8px" data-plan="${i.id}">${ic('i-cal')} Запланировать</button>
+       ${i.int!=='someday'?`<button class="btn-glass glass" style="margin-top:10px" data-skip="${i.id}">${ic('i-moon')} Не сейчас — в «когда-нибудь»</button>`:''}
        <button class="btn-glass glass" style="margin-top:10px" data-share="${i.url||''}">${ic('i-share')} Поделиться${PARTNER_NAME?' с '+instrName(PARTNER_NAME):''}</button>`;
   const d=document.getElementById('detail');
   d.innerHTML=`
@@ -1282,6 +1286,14 @@ function planIdea(id){
   if(window.__track)window.__track('plan');
   render(); openDetail(i.id);
 }
+function skipIdea(id){
+  const i=IDEAS.find(x=>String(x.id)===String(id)); if(!i)return;
+  i.int='someday';
+  if(window.__sb)window.__sb.from('ideas').update({intensity:'someday'}).eq('id',i.id).then(()=>{},()=>{});
+  if(window.__track)window.__track('skip');
+  closeDetail(); render();
+  toast('Отложил в «когда-нибудь» 🌙');
+}
 function replanIdea(id,date){
   const i=IDEAS.find(x=>String(x.id)===String(id)); if(!i||!date)return;
   i.date=date;
@@ -1416,6 +1428,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#open-list')){showTab('list');return;}
   if(e.target.closest('[data-close-detail]')){closeDetail();return;}
   const plan=e.target.closest('[data-plan]'); if(plan){planIdea(plan.dataset.plan);return;}
+  const sk=e.target.closest('[data-skip]'); if(sk){skipIdea(sk.dataset.skip);return;}
   const done=e.target.closest('[data-done]'); if(done){openDone(done.dataset.done);return;}
   const rep=e.target.closest('[data-repeat]'); if(rep){closeDetail();showTab('list');return;}
   const sh=e.target.closest('[data-share]'); if(sh){shareIdea(sh.dataset.share);return;}
