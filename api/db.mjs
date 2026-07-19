@@ -102,7 +102,20 @@ async function handleOp(op, body, user, couple_id, res) {
     if (String(user.id) !== ADMIN_ID) return res.status(403).json({ error: 'forbidden' });
     const u = await svc().from('app_users').select('*', { count: 'exact', head: true });
     const cc = await svc().from('couples').select('*', { count: 'exact', head: true });
-    return res.status(200).json({ data: { users: u.count || 0, couples: cc.count || 0 } });
+    // Breakdown: auto-provisioning mints a couple for every visitor, so raw
+    // couple count overstates real pairs. Classify by membership and content.
+    const mem = await svc().from('app_users').select('couple_id');
+    const perCouple = {}; (mem.data || []).forEach((r) => { perCouple[r.couple_id] = (perCouple[r.couple_id] || 0) + 1; });
+    const full = Object.values(perCouple).filter((n) => n >= 2).length;
+    const solo = Object.values(perCouple).filter((n) => n === 1).length;
+    const ideasRows = await svc().from('ideas').select('couple_id,created_at');
+    const withContent = new Set((ideasRows.data || []).map((r) => r.couple_id)).size;
+    const weekAgo = Date.now() - 7 * 86400000;
+    const ideas7d = (ideasRows.data || []).filter((r) => new Date(r.created_at).getTime() > weekAgo).length;
+    return res.status(200).json({ data: {
+      users: u.count || 0, couples: cc.count || 0,
+      couples_full: full, couples_solo: solo, couples_empty: (cc.count || 0) - full - solo,
+      couples_with_ideas: withContent, ideas_last_7d: ideas7d } });
   }
   if (op === 'broadcast') { // owner-only announcement to every bot user
     if (String(user.id) !== ADMIN_ID) return res.status(403).json({ error: 'forbidden' });
